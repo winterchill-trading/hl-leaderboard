@@ -14,7 +14,7 @@ keys and never signs or sends an exchange action, so pulling from mainnet is saf
 # Collect: leaderboard, then fills, clearinghouseState and portfolio of the candidates
 hl-leaderboard collect -out data/ [-network mainnet|testnet|local] [-base-url URL] \
   [-top 20] [-windows day,week,month,allTime] [-min-account-value 10000] \
-  [-lookback-days 30] [-max-pages 5] [-weight-per-minute 1200]
+  [-include-roles user] [-lookback-days 30] [-max-pages 5] [-weight-per-minute 1200]
 
 # Rank: score every collected leader, write the ranking, print the top 10
 hl-leaderboard rank -in data/ -out data/leaders.json [-min-trades 5]
@@ -30,7 +30,13 @@ as an `/info` request; `-base-url` and `-leaderboard-url` point anywhere else.
 
 1. Fetches the leaderboard (`https://stats-data.hyperliquid.xyz/Mainnet/leaderboard`,
    about 40 MB and 47k rows) and picks the candidates: the top `-top` rows by pnl in each
-   window, at least `-min-account-value`, without duplicates.
+   window, at least `-min-account-value`, without duplicates, whose `userRole` is in
+   `-include-roles` (default `user`; also `agent`, `vault`, `subAccount`, `missing`).
+   The leaderboard lists vaults (HLP is 8th by all-time pnl), sub-accounts and API
+   wallets next to traders; a skipped row makes room for the next one in that window, so
+   each window still yields `-top` candidates. Roles are asked only for the rows the
+   walk reaches, once per address. A server without `userRole` (hl-sim) keeps every row,
+   with no role.
 2. For each candidate: `userFillsByTime` from `-lookback-days` ago, paged forward
    (`Fill_pages`: at most 2000 fills per page, the next page starts at the newest time of
    the previous one and repeats are dropped by `(tid, oid)`), at most `-max-pages` pages;
@@ -49,9 +55,10 @@ data/
   raw/fills/<address>.ndjson                     one line per userFillsByTime page
   raw/state/<address>.ndjson                     one line per clearinghouseState
   raw/portfolio/<address>.ndjson                 one line per portfolio
+  raw/role/<address>.ndjson                      one line per userRole, skipped rows too
   _manifest/progress.sexp                        candidates and addresses done
   _manifest/candidates.json                      the candidates' leaderboard rows
-  leaders.parquet                                one row per candidate
+  leaders.parquet                                one row per candidate, with its role
   fills.parquet                                  every fill of every candidate
 ```
 
@@ -67,11 +74,13 @@ duckdb -c "select address, count(*), sum(closed_pnl - fee) from 'data/fills.parq
 
 Hyperliquid allows 1200 request weight per minute per IP. `Rate_limit` is a token bucket
 (capacity and refill = `-weight-per-minute`, FIFO waiters) charged before each request
-with the documented weights: 20 for most info requests, 2 for `clearinghouseState`, and for
+with the documented weights: 20 for most info requests, 2 for `clearinghouseState`, 60
+for `userRole`, and for
 `userFillsByTime` 20 up front plus 1 per 20 fills returned, charged after the response (a
 full page costs 120). The stats host is a CDN and is not charged. HTTP 429, 5xx and
 transport errors are retried with exponential backoff (0.5 s, 1 s, 2 s, ...), 5 attempts.
-A 40-address run with full fill histories costs about 15k weight, 13 minutes at 1200.
+A 40-address run with full fill histories costs about 15k weight, 13 minutes at 1200;
+the role checks add 60 per address reached (about 3k for 52 addresses, 2.5 minutes).
 
 ## Score
 
@@ -105,7 +114,7 @@ What this repository feeds it:
 
 | Request | Response |
 | --- | --- |
-| `GET /leaders[?limit=N]` | The ranking file: `generated_at`, `formula`, `leaders` (rank, address, display name, account value, leaderboard windows, fill counts, `curve_source`, `truncated`, `score` and `components`); re-read when the file changes |
+| `GET /leaders[?limit=N]` | The ranking file: `generated_at`, `formula`, `leaders` (rank, address, display name, `role` (`userRole` name or null), account value, leaderboard windows, fill counts, `curve_source`, `truncated`, `score` and `components`); re-read when the file changes |
 | `GET /leaders/<address>[?limit=N]` | `entry` (the ranking entry or null), `fill_count`, `fills` (newest first, default 500), `equity_curve` (`[[time_ms, equity], ...]`), `curve_source`, `positions` (latest `clearinghouseState`) |
 | `GET /health` | `"ok"` |
 
@@ -117,6 +126,7 @@ A malformed address is a 400, an address with nothing collected a 404. Every res
 | Module | Purpose |
 | --- | --- |
 | `Board` | Candidate selection over `Hl_protocol.Leaderboard` rows (`top`, `candidates`) |
+| `Roles` | `userRole` filter over the candidate walk (`-include-roles`) |
 | `Api` | Rate-limited, retried read-only client returning raw bodies and decoded values |
 | `Rate_limit` | Token bucket and the documented request weights |
 | `Fill_pages` | Forward walk over `userFillsByTime` pages with de-duplication |
@@ -129,8 +139,8 @@ A malformed address is a 400, an address with nothing collected a 404. Every res
 | `Rank` | Score input, ranking and its JSON |
 | `Server` | The JSON API |
 
-`Hl_client.Leaderboard.fetch` and `Hl_client.Info.user_fills_by_time` cover the same
-requests; this repository keeps its own `Api` because the collector stores every raw body
+`Hl_client.Leaderboard.fetch`, `Hl_client.Info.user_fills_by_time` and
+`Hl_client.Info.user_role` cover the same requests; this repository keeps its own `Api` because the collector stores every raw body
 and paces requests through one shared bucket.
 
 ## Tests
@@ -144,7 +154,8 @@ one display name replaced, six fills from a 2000-fill page, one `clearinghouseSt
 `portfolio`), run the rate limiter on a synthetic clock, walk fill pages across
 millisecond boundaries, and run `collect`, `rank` and `serve` end to end against a local
 stand-in for the stats host and `/info` (`test/fake_hl.ml`), including a 429 retry, a
-failed address, a resumed run and a restart.
+failed address, a resumed run, a restart, and a vault and a sub-account skipped for the
+next rows.
 
 `scripts/sim-e2e.sh` runs the same flow against a real hl-sim with noise traders (its
 `leaderboard`, `userFillsByTime` and `clearinghouseState` info requests):
