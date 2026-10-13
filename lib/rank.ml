@@ -15,6 +15,8 @@ module Entry = struct
     ; first_fill_ms : int option
     ; last_fill_ms : int option
     ; positions : int
+    ; curve_source : [ `Portfolio_month | `Fills ]
+    ; truncated : bool
     ; score : Score.t
     }
   [@@deriving sexp_of]
@@ -42,6 +44,12 @@ module Entry = struct
       ; "first_fill_ms", option (fun x -> `Int x) t.first_fill_ms
       ; "last_fill_ms", option (fun x -> `Int x) t.last_fill_ms
       ; "positions", `Int t.positions
+      ; ( "curve_source"
+        , `String
+            (match t.curve_source with
+             | `Portfolio_month -> "portfolio_month"
+             | `Fills -> "fills") )
+      ; "truncated", `Bool t.truncated
       ; "score", `Float s.score
       ; ( "components"
         , `Assoc
@@ -102,16 +110,35 @@ let to_copy_fill (f : User_fill.t) : Hl_copy_core.Fill.t =
   }
 ;;
 
+let account_value (leader : Dataset.Leader.t) =
+  match leader.state, leader.row with
+  | Some (_, state), _ -> Usd.to_float state.margin_summary.account_value
+  | None, Some row -> row.account_value
+  | None, None -> 0.
+;;
+
+let equity_curve ~now_ms (leader : Dataset.Leader.t) =
+  match
+    Option.bind leader.portfolio ~f:(fun p -> Portfolio.find p "month")
+    |> Option.bind ~f:Portfolio.equity_curve
+  with
+  | Some curve -> curve, `Portfolio_month
+  | None ->
+    ( Equity_curve.of_fills
+        ~account_value:(account_value leader)
+        ~now_ms
+        (scored_fills leader.fills)
+    , `Fills )
+;;
+
+let truncation_threshold = 2000
+
 let score_leader ~now_ms (leader : Dataset.Leader.t) =
-  let account_value =
-    match leader.state, leader.row with
-    | Some (_, state), _ -> Usd.to_float state.margin_summary.account_value
-    | None, Some row -> row.account_value
-    | None, None -> 0.
-  in
+  let account_value = account_value leader in
   let fills = scored_fills leader.fills in
+  let curve, curve_source = equity_curve ~now_ms leader in
   let equity =
-    Equity_curve.of_fills ~account_value ~now_ms fills
+    curve
     |> List.map ~f:(fun (p : Equity_curve.Point.t) ->
       { Score.Equity_point.time_ns = p.time_ms * 1_000_000
       ; (* The curve is float arithmetic already (an approximation, see Equity_curve);
@@ -132,6 +159,13 @@ let score_leader ~now_ms (leader : Dataset.Leader.t) =
   ; last_fill_ms = List.last leader.fills |> Option.map ~f:(fun f -> f.time)
   ; positions =
       Option.value_map leader.state ~default:0 ~f:(fun (_, s) -> List.length s.positions)
+  ; curve_source
+  ; truncated =
+      (List.length leader.fills >= truncation_threshold
+       &&
+       match List.hd leader.fills, List.hd curve with
+       | Some f, Some p -> f.time > p.time_ms
+       | _ -> false)
   ; score
   }
 ;;

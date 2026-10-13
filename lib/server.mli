@@ -5,7 +5,7 @@
       ([{"generated_at", "formula", "leaders": [...]}]); re-read when its modification
       time changes. [?limit=N] keeps the first [N] leaders.
     - [GET /leaders/<address>]:
-      [{"address", "entry" (the ranking entry or null), "fills" (newest first, at most [?limit=N], default 500), "fill_count", "equity_curve" ([[time_ms, equity], ...]), "positions" (from the latest clearinghouseState, or [])}].
+      [{"address", "entry" (the ranking entry or null), "fills" (newest first, at most [?limit=N], default 500), "fill_count", "equity_curve" ([[time_ms, equity], ...]), "curve_source" (["portfolio_month"] or ["fills"], see {!Rank}), "positions" (from the latest clearinghouseState, or [])}].
       An address that is not [0x] and 40 hex digits is a 400; one with nothing collected
       a 404.
     - [GET /health]: ["ok"].

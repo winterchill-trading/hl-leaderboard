@@ -9,8 +9,16 @@
       [startPosition], a synthetic opening fill of that size (no pnl, no fee, [tid = -1])
       is put 1 ms before it. That trip's open time is therefore the start of the history,
       not the real one;
-    - equity: {!Equity_curve.of_fills} from the latest [clearinghouseState] account value
-      (the leaderboard's when there is no state).
+    - equity: the [month] window of the latest [portfolio] response
+      ({!Portfolio.equity_curve}: account value at the window's start plus cumulative pnl,
+      so deposits and withdrawals do not show as gains or drawdowns); without one,
+      {!Equity_curve.of_fills} from the latest [clearinghouseState] account value (the
+      leaderboard's when there is no state).
+
+    [truncated] flags a leader with at least 2000 fills whose first fill is later than the
+    start of the equity curve: the trade statistics (win rate, trips, holding time) then
+    cover only the most recent part of the window, because Hyperliquid serves only the
+    10000 most recent fills.
 
     Leaders with fewer than [min_trades] round trips are listed after the others, unranked
     ([rank = None]). *)
@@ -31,6 +39,8 @@ module Entry : sig
     ; first_fill_ms : int option
     ; last_fill_ms : int option
     ; positions : int
+    ; curve_source : [ `Portfolio_month | `Fills ]
+    ; truncated : bool
     ; score : Hl_copy_core.Score.t
     }
   [@@deriving sexp_of]
@@ -40,6 +50,12 @@ end
 
 (** The fills given to the score (see above), oldest first, synthetic opens included. *)
 val scored_fills : User_fill.t list -> User_fill.t list
+
+(** The curve given to the score, and where it came from (see above). *)
+val equity_curve
+  :  now_ms:int
+  -> Dataset.Leader.t
+  -> Equity_curve.t * [ `Portfolio_month | `Fills ]
 
 val to_copy_fill : User_fill.t -> Hl_copy_core.Fill.t
 val score_leader : now_ms:int -> Dataset.Leader.t -> Entry.t

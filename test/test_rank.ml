@@ -48,6 +48,7 @@ let leader address fills ~value : Dataset.Leader.t =
         }
   ; fills
   ; state = None
+  ; portfolio = None
   }
 ;;
 
@@ -140,6 +141,8 @@ let%expect_test "rank three leaders" =
           "first_fill_ms": 1000000,
           "last_fill_ms": 350200000,
           "positions": 0,
+          "curve_source": "fills",
+          "truncated": false,
           "score": 0.24334524801543791,
           "components": {
             "pnl": 2450.0,

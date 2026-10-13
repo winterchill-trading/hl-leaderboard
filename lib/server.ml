@@ -75,15 +75,7 @@ let leader_json ~dir ~ranking ~limit ~now_ms address =
      && List.is_empty leader.fills
   then return (Ok None)
   else (
-    let account_value =
-      match leader.state, leader.row with
-      | Some (_, s), _ -> Usd.to_float s.margin_summary.account_value
-      | None, Some r -> r.account_value
-      | None, None -> 0.
-    in
-    let curve =
-      Equity_curve.of_fills ~account_value ~now_ms (Rank.scored_fills leader.fills)
-    in
+    let curve, source = Rank.equity_curve ~now_ms leader in
     `Assoc
       [ "address", `String (Address.to_string address)
       ; ( "entry"
@@ -95,6 +87,11 @@ let leader_json ~dir ~ranking ~limit ~now_ms address =
             (List.rev leader.fills
              |> Fn.flip List.take limit
              |> List.map ~f:User_fill.yojson_of_t) )
+      ; ( "curve_source"
+        , `String
+            (match source with
+             | `Portfolio_month -> "portfolio_month"
+             | `Fills -> "fills") )
       ; ( "equity_curve"
         , `List
             (List.map curve ~f:(fun (p : Equity_curve.Point.t) ->
