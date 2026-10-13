@@ -1,0 +1,7 @@
+(executable
+ (name main)
+ (public_name hl-leaderboard)
+ (package hl-leaderboard)
+ (libraries core core_unix.command_unix async hl-leaderboard uri yojson)
+ (preprocess
+  (pps ppx_jane)))
