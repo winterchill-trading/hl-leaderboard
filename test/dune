@@ -5,6 +5,14 @@
    (source_tree fixtures))
   (flags
    (:standard -source-tree-root .)))
- (libraries core async uri yojson hl-protocol hl-leaderboard)
+ (libraries
+  core
+  async
+  uri
+  yojson
+  cohttp
+  cohttp-async
+  hl-protocol
+  hl-leaderboard)
  (preprocess
   (pps ppx_jane)))
