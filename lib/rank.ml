@@ -62,19 +62,32 @@ let is_perp (f : User_fill.t) =
   not (String.is_prefix coin ~prefix:"@" || String.mem coin '/')
 ;;
 
+let synthetic_open (first : User_fill.t) =
+  let long = Size.(first.start_position > zero) in
+  { first with
+    time = first.time - 1
+  ; side = (if long then Buy else Sell)
+  ; sz = (if long then first.start_position else Size.neg first.start_position)
+  ; start_position = Size.zero
+  ; dir = (if long then "Open Long" else "Open Short")
+  ; closed_pnl = Usd.zero
+  ; fee = Usd.zero
+  ; tid = -1
+  ; hash = "synthetic"
+  ; crossed = false
+  ; cloid = None
+  }
+;;
+
 let scored_fills fills =
-  let started = Hash_set.create (module String) in
-  List.filter fills ~f:(fun (f : User_fill.t) ->
-    is_perp f
-    &&
-    let coin = Coin.to_string f.coin in
-    if Hash_set.mem started coin
-    then true
-    else if Size.(f.start_position = zero)
-    then (
-      Hash_set.add started coin;
-      true)
-    else false)
+  let seen = Hash_set.create (module String) in
+  List.concat_map fills ~f:(fun (f : User_fill.t) ->
+    if not (is_perp f)
+    then []
+    else (
+      match Hash_set.strict_add seen (Coin.to_string f.coin) with
+      | Ok when not Size.(f.start_position = zero) -> [ synthetic_open f; f ]
+      | Ok | Duplicate -> [ f ]))
 ;;
 
 let to_copy_fill (f : User_fill.t) : Hl_copy_core.Fill.t =
@@ -114,7 +127,7 @@ let score_leader ~now_ms (leader : Dataset.Leader.t) =
   ; leaderboard =
       Option.value_map leader.row ~default:[] ~f:(fun r -> r.window_performances)
   ; fills = List.length leader.fills
-  ; scored_fills = List.length fills
+  ; scored_fills = List.count fills ~f:(fun f -> f.tid >= 0)
   ; first_fill_ms = List.hd leader.fills |> Option.map ~f:(fun f -> f.time)
   ; last_fill_ms = List.last leader.fills |> Option.map ~f:(fun f -> f.time)
   ; positions =

@@ -3,9 +3,12 @@
 
     Score input, per leader:
     - fills: perpetual fills only (spot pairs, [@107] or [PURR/USDC], cannot be mirrored
-      on a perp account), and per coin only from the first fill that opens from a flat
-      position ([startPosition = 0]): the history is cut at 10000 fills, and a round trip
-      that started before the cut would be counted wrong;
+      on a perp account). The history usually starts with a position already open (it is
+      cut at 10000 fills and at the lookback), and the score finds round trips by tracking
+      the position from zero; so for each coin whose first fill has a non-zero
+      [startPosition], a synthetic opening fill of that size (no pnl, no fee, [tid = -1])
+      is put 1 ms before it. That trip's open time is therefore the start of the history,
+      not the real one;
     - equity: {!Equity_curve.of_fills} from the latest [clearinghouseState] account value
       (the leaderboard's when there is no state).
 
@@ -24,7 +27,7 @@ module Entry : sig
     ; account_value : float
     ; leaderboard : (Board.Window.t * Leaderboard.Performance.t) list
     ; fills : int (** all fills collected *)
-    ; scored_fills : int (** after the perp-only, from-flat filter *)
+    ; scored_fills : int (** perp fills, without the synthetic opens *)
     ; first_fill_ms : int option
     ; last_fill_ms : int option
     ; positions : int
@@ -35,7 +38,7 @@ module Entry : sig
   val to_json : t -> Yojson.Safe.t
 end
 
-(** The fills given to the score (see above), oldest first. *)
+(** The fills given to the score (see above), oldest first, synthetic opens included. *)
 val scored_fills : User_fill.t list -> User_fill.t list
 
 val to_copy_fill : User_fill.t -> Hl_copy_core.Fill.t

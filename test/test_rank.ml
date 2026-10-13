@@ -51,9 +51,11 @@ let leader address fills ~value : Dataset.Leader.t =
   }
 ;;
 
-let%expect_test "scored fills: perps only, from the first flat point per coin" =
+let%expect_test "scored fills: perps only, with a synthetic open for a position already \
+                 held"
+  =
   let fills =
-    [ fill ~time:1 ~side:Sell ~start:3 ~pnl:50. () (* closes a position opened earlier *)
+    [ fill ~time:1 ~side:Sell ~start:1 ~pnl:50. () (* closes a position opened earlier *)
     ; fill ~coin:"@107" ~time:2 ~side:Buy ~start:0 ~pnl:0. ()
     ; fill ~time:3 ~side:Buy ~start:0 ~pnl:0. ()
     ; fill ~coin:"xyz:NVDA" ~time:4 ~side:Sell ~start:0 ~pnl:0. ()
@@ -61,11 +63,21 @@ let%expect_test "scored fills: perps only, from the first flat point per coin" =
     ]
   in
   List.iter (Rank.scored_fills fills) ~f:(fun f ->
-    printf "%d %s\n" f.time (Coin.to_string f.coin));
-  [%expect {|
-    3 BTC
-    4 xyz:NVDA
-    5 BTC
+    printf
+      "%d %s %s %s start=%s tid=%d\n"
+      f.time
+      (Coin.to_string f.coin)
+      (Side.to_wire f.side)
+      (Size.to_string f.sz)
+      (Size.to_string f.start_position)
+      f.tid);
+  [%expect
+    {|
+    0 BTC B 1 start=0 tid=-1
+    1 BTC A 1 start=1 tid=1
+    3 BTC B 1 start=0 tid=3
+    4 xyz:NVDA A 1 start=0 tid=4
+    5 BTC A 1 start=1 tid=5
     |}]
 ;;
 
