@@ -153,7 +153,7 @@ let%expect_test "collect, fail one address, resume, start over" =
     (("List.sort (Array.to_list files) ~compare:String.compare"
       (_manifest fills.parquet leaders.parquet raw))
      ("List.sort (Array.to_list raw) ~compare:String.compare"
-      (fills leaderboard state)))
+      (fills leaderboard role state)))
     (("magic (Layout.leaders_parquet dir)" (PAR1 PAR1))
      ("magic (Layout.fills_parquet dir)" (PAR1 PAR1)))
     |}];
@@ -219,26 +219,20 @@ let%expect_test "collect skips a vault and a sub-account and records the roles" 
   Fake_hl.close server
 ;;
 
-let%expect_test "off the simulator, an address without a role is not a candidate" =
+let%expect_test "an address whose role cannot be read is not a candidate on any network" =
   Log.Global.set_output [];
   let%bind dir = Unix.mkdtemp "/tmp/hl-leaderboard-strict" in
-  (* No [roles]: every userRole request gets HTTP 400, which is not retried. *)
+  (* Every userRole request gets HTTP 400, which is not retried; the rows are excluded
+     even on Local. *)
   let%bind server =
     Fake_hl.start
+      ~roles_down:true
       ~leaderboard:(In_channel.read_all "fixtures/leaderboard.json")
       ~fills:[]
       ~state:(In_channel.read_all "fixtures/clearinghouse_state.json")
       ()
   in
-  let api =
-    Api.create
-      ~base_url:(Fake_hl.base_url server)
-      ~leaderboard_url:(Fake_hl.leaderboard_url server)
-      ~rate_limit:(Rate_limit.create ~refill_per_minute:1_000_000_000 ())
-      ~max_attempts:2
-      Testnet
-  in
-  let%bind summary = Collect.run ~now:(fun () -> now) api (config dir) in
+  let%bind summary = Collect.run ~now:(fun () -> now) (api server) (config dir) in
   print_s [%sexp (summary : Collect.Summary.t Or_error.t)];
   [%expect
     {|

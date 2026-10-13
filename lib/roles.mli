@@ -19,23 +19,20 @@ val default : string list
 val arg_type : string Command.Arg_type.t
 
 (** Whether a role is in [roles] (wire names). An unknown role ([None]: the request failed
-    after its retries, or the server has no [userRole]) is accepted only when
-    [keep_unknown]. {!Collect} keeps unknown roles on [-network local] alone, because
-    hl-sim has no [userRole] yet; on mainnet and testnet a vault must not slip in through
+    after its retries) is never accepted, on any network: a vault must not slip in through
     a failed request. *)
-val accepts : keep_unknown:bool -> roles:string list -> User_role.Role.t option -> bool
+val accepts : roles:string list -> User_role.Role.t option -> bool
 
 (** Like {!Board.candidates}, but a row whose role is not accepted does not count towards
     a window's [n]: the walk goes down that window's ranking until [n] accepted rows (or
     the end). [role_of] is called at most once per address, only for rows the walk
     reaches. Returns the candidates in order of first appearance and the rows left out,
-    with their role ([None] when unknown and not [keep_unknown]). *)
+    with their role ([None] when the lookup failed). *)
 val candidates
   :  ?min_account_value:float
   -> Board.t
   -> n:int
   -> windows:Board.Window.t list
   -> roles:string list
-  -> keep_unknown:bool
   -> role_of:(Address.t -> User_role.Role.t option Deferred.t)
   -> (Board.Row.t list * (Board.Row.t * User_role.Role.t option) list) Deferred.t

@@ -12,12 +12,12 @@ let arg_type =
     else raise_s [%message "unknown role" s ~expected:(names : string list)])
 ;;
 
-let accepts ~keep_unknown ~roles = function
-  | None -> keep_unknown
+let accepts ~roles = function
+  | None -> false
   | Some role -> List.mem roles (User_role.Role.to_string role) ~equal:String.equal
 ;;
 
-let candidates ?min_account_value board ~n ~windows ~roles ~keep_unknown ~role_of =
+let candidates ?min_account_value board ~n ~windows ~roles ~role_of =
   let known = Address.Table.create () in
   let role (row : Board.Row.t) =
     match Hashtbl.find known row.eth_address with
@@ -39,7 +39,7 @@ let candidates ?min_account_value board ~n ~windows ~roles ~keep_unknown ~role_o
       then walk rest ~taken:(taken + 1)
       else (
         match%bind role row with
-        | r when accepts ~keep_unknown ~roles r ->
+        | r when accepts ~roles r ->
           Hash_set.add selected row.eth_address;
           Queue.enqueue candidates row;
           walk rest ~taken:(taken + 1)

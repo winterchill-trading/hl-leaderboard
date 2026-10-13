@@ -21,7 +21,7 @@ let page fills ~start_time =
   |> Fn.flip List.take 2000
 ;;
 
-let start ?portfolio ?roles ~leaderboard ~fills ~state () =
+let start ?portfolio ?(roles = []) ?(roles_down = false) ~leaderboard ~fills ~state () =
   let requests = Queue.create () in
   let failing = Address.Hash_set.create () in
   let fills = Address.Map.of_alist_exn fills in
@@ -62,8 +62,10 @@ let start ?portfolio ?roles ~leaderboard ~fills ~state () =
           if Hash_set.mem failing user
           then respond ~status:`Internal_server_error "{\"error\":\"down\"}"
           else respond state
-        | "userRole", Some user when Option.is_some roles ->
-          List.Assoc.find (Option.value_exn roles) user ~equal:Address.equal
+        | "userRole", Some _ when roles_down ->
+          respond ~status:`Bad_request "\"unsupported\""
+        | "userRole", Some user ->
+          List.Assoc.find roles user ~equal:Address.equal
           |> Option.value ~default:{|{"role":"user"}|}
           |> respond
         | "portfolio", Some _ when Option.is_some portfolio ->
