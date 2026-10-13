@@ -49,6 +49,7 @@ let leader address fills ~value : Dataset.Leader.t =
   ; fills
   ; state = None
   ; portfolio = None
+  ; role = None
   }
 ;;
 

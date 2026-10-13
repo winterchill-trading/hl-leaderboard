@@ -12,6 +12,8 @@ module Leader : sig
     ; fills : User_fill.t list (** oldest first, without duplicates *)
     ; state : (Time_ns.t * Clearinghouse_state.t) option (** the latest one *)
     ; portfolio : Portfolio.t option (** the latest one *)
+    ; role : User_role.Role.t option
+    (** the latest [userRole]; [None] when not asked or unanswered *)
     }
   [@@deriving sexp_of]
 end
@@ -34,6 +36,9 @@ val load_state
 
 (** The last portfolio in [Layout.portfolio dir address] that decodes. *)
 val load_portfolio : string -> Address.t -> Portfolio.t option Or_error.t Deferred.t
+
+(** The last role in [Layout.role dir address] that decodes. *)
+val load_role : string -> Address.t -> User_role.Role.t option Or_error.t Deferred.t
 
 (** The candidates' rows saved by {!Collect} ([[]] if missing). *)
 val load_candidates : string -> Board.Row.t list Or_error.t Deferred.t
