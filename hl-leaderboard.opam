@@ -26,6 +26,7 @@ depends: [
   "hl-protocol"
   "venue-net"
   "hl-client"
+  "hl-copy-core"
   "odoc" {with-doc}
 ]
 build: [

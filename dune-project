@@ -36,4 +36,5 @@
   market-data
   hl-protocol
   venue-net
-  hl-client))
+  hl-client
+  hl-copy-core))

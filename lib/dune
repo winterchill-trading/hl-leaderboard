@@ -14,6 +14,7 @@
   market-data
   hl-protocol
   venue-net
-  hl-client)
+  hl-client
+  hl-copy-core)
  (preprocess
   (pps ppx_jane ppx_yojson_conv)))
