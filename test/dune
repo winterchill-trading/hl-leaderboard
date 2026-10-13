@@ -1,0 +1,10 @@
+(library
+ (name hl_leaderboard_test)
+ (inline_tests
+  (deps
+   (source_tree fixtures))
+  (flags
+   (:standard -source-tree-root .)))
+ (libraries core async uri yojson hl-protocol hl-leaderboard)
+ (preprocess
+  (pps ppx_jane)))
