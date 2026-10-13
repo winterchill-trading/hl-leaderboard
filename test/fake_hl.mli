@@ -8,8 +8,11 @@ open Hl_protocol
 
 type t
 
+(** [portfolio], when given, answers every [portfolio] request; without it they get HTTP
+    400, as from hl-sim. *)
 val start
-  :  leaderboard:string
+  :  ?portfolio:string
+  -> leaderboard:string
   -> fills:(Address.t * User_fill.t list) list
   -> state:string
   -> unit

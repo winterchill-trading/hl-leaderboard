@@ -21,7 +21,7 @@ let page fills ~start_time =
   |> Fn.flip List.take 2000
 ;;
 
-let start ~leaderboard ~fills ~state () =
+let start ?portfolio ~leaderboard ~fills ~state () =
   let requests = Queue.create () in
   let failing = Address.Hash_set.create () in
   let fills = Address.Map.of_alist_exn fills in
@@ -62,6 +62,8 @@ let start ~leaderboard ~fills ~state () =
           if Hash_set.mem failing user
           then respond ~status:`Internal_server_error "{\"error\":\"down\"}"
           else respond state
+        | "portfolio", Some _ when Option.is_some portfolio ->
+          respond (Option.value_exn portfolio)
         | _ -> respond ~status:`Bad_request "\"unsupported\"")
     | _ -> respond ~status:`Not_found "\"not found\""
   in

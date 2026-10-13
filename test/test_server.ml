@@ -63,6 +63,7 @@ let%expect_test "rank a collected directory and serve it" =
       ~leaderboard:(In_channel.read_all "fixtures/leaderboard.json")
       ~fills:[ a1, fills ]
       ~state:(In_channel.read_all "fixtures/clearinghouse_state.json")
+      ~portfolio:(In_channel.read_all "fixtures/portfolio.json")
       ()
   in
   let api =
@@ -137,13 +138,14 @@ let%expect_test "rank a collected directory and serve it" =
            |> List.map ~f:(fun f -> member "time" f |> to_int)
            : int list)
         ~equity_points:(json |> member "equity_curve" |> to_list |> List.length : int)
+        ~curve_source:(json |> member "curve_source" |> to_string : string)
         ~positions:(json |> member "positions" |> to_list |> List.length : int)];
   [%expect
     {|
     /leaders/0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf?limit=2 -> 200 cors=*
     ((entry_rank 1) (fill_count 12) (fills_returned 2)
-     (newest_first (1791868260000 1791868200000)) (equity_points 14)
-     (positions 86))
+     (newest_first (1791868260000 1791868200000)) (equity_points 47)
+     (curve_source portfolio_month) (positions 86))
     |}];
   let%bind (_ : string) = show "/leaders/not-an-address" in
   let%bind (_ : string) = show ("/leaders/0x" ^ String.make 40 'a') in
