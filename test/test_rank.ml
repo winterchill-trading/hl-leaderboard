@@ -160,3 +160,8 @@ let%expect_test "rank three leaders" =
     }
     |}]
 ;;
+
+let%expect_test "the -min-trades default is the README's 5" =
+  print_s [%sexp (Rank.default_min_trades : int)];
+  [%expect {| 5 |}]
+;;
