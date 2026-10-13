@@ -44,6 +44,8 @@ let leaders_schema : Dataset.Leader.t Parquet.Schema.t =
      ; Column.utf8 "display_name" (fun (l : Dataset.Leader.t) ->
          Option.bind l.row ~f:(fun (r : Board.Row.t) -> r.display_name)
          |> Option.value ~default:"")
+     ; Column.utf8 "role" (fun (l : Dataset.Leader.t) ->
+         Option.value_map l.role ~default:"" ~f:User_role.Role.to_string)
      ; Column.float "account_value" (fun (l : Dataset.Leader.t) ->
          Option.value_map l.row ~default:0. ~f:(fun (r : Board.Row.t) -> r.account_value))
      ]
