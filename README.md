@@ -24,7 +24,7 @@ hl-leaderboard serve -port 8090 -dir data/ [-leaders data/leaders.json]
 ```
 
 `-network local` targets hl-sim on `http://localhost:3000`, which serves the leaderboard
-as an `/info` request; `-base-url` and `-leaderboard-url` point anywhere else.
+and `userRole` as `/info` requests; `-base-url` and `-leaderboard-url` point anywhere else.
 
 ### collect
 
@@ -36,8 +36,7 @@ as an `/info` request; `-base-url` and `-leaderboard-url` point anywhere else.
    wallets next to traders; a skipped row makes room for the next one in that window, so
    each window still yields `-top` candidates. Roles are asked only for the rows the
    walk reaches, once per address. A row whose role cannot be read (the request still
-   fails after its retries) is skipped on mainnet and testnet; only `-network local`
-   keeps it, with no role, because hl-sim does not serve `userRole` yet.
+   fails after its retries) is skipped on every network.
 2. For each candidate: `userFillsByTime` from `-lookback-days` ago, paged forward
    (`Fill_pages`: at most 2000 fills per page, the next page starts at the newest time of
    the previous one and repeats are dropped by `(tid, oid)`), at most `-max-pages` pages;
