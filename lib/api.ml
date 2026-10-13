@@ -185,6 +185,13 @@ let user_fills_by_time t ~user ~start_time =
        Ok (raw, fills))
 ;;
 
+let portfolio t ~user =
+  let%map raw = info t (Portfolio.request user) in
+  let%bind.Or_error raw in
+  let%map.Or_error p = Portfolio.of_string raw.body in
+  raw, p
+;;
+
 let clearinghouse_state t ~user =
   let%map raw =
     info

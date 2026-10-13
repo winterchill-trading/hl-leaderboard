@@ -71,6 +71,9 @@ val clearinghouse_state
   -> user:Address.t
   -> (Raw.t * Clearinghouse_state.t) Or_error.t Deferred.t
 
+(** [portfolio] ({!Portfolio}). *)
+val portfolio : t -> user:Address.t -> (Raw.t * Portfolio.t) Or_error.t Deferred.t
+
 (** Decodes a [userFills]/[userFillsByTime] body. *)
 val decode_fills : string -> User_fill.t list Or_error.t
 
