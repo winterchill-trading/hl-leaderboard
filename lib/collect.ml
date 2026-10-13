@@ -98,8 +98,18 @@ let collect_one ~now api (config : Config.t) address =
       ()
   in
   let%bind.Deferred.Or_error raw, _state = Api.clearinghouse_state api ~user:address in
-  let%map () =
+  let%bind () =
     Raw_log.append (Layout.state config.dir address) ~recv_ts:raw.recv_ts raw.body
+  in
+  (* Optional: the simulator and older deployments have no [portfolio]; the score then
+     falls back to the curve rebuilt from fills. *)
+  let%map () =
+    match%bind Api.portfolio api ~user:address with
+    | Ok (raw, _) ->
+      Raw_log.append (Layout.portfolio config.dir address) ~recv_ts:raw.recv_ts raw.body
+    | Error e ->
+      Log.Global.info_s [%message "no portfolio" (address : Address.t) (e : Error.t)];
+      return ()
   in
   Log.Global.info_s
     [%message

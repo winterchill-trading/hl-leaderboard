@@ -66,7 +66,7 @@ let%expect_test "collect, fail one address, resume, start over" =
   [%expect
     {|
     (Ok
-     ((candidates 3) (collected 2) (failed 1) (fills 4500) (weight 332)
+     ((candidates 3) (collected 2) (failed 1) (fills 4500) (weight 372)
       (retries 2) (resumed false)))
     GET /leaderboard
     userFillsByTime 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
@@ -74,8 +74,10 @@ let%expect_test "collect, fail one address, resume, start over" =
     userFillsByTime 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
     userFillsByTime 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
     clearinghouseState 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
+    portfolio 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
     userFillsByTime 0xf5d81a135f756ca16544e53c20fc20643ec3ad53
     clearinghouseState 0xf5d81a135f756ca16544e53c20fc20643ec3ad53
+    portfolio 0xf5d81a135f756ca16544e53c20fc20643ec3ad53
     userFillsByTime 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
     clearinghouseState 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
     clearinghouseState 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
@@ -87,10 +89,11 @@ let%expect_test "collect, fail one address, resume, start over" =
   [%expect
     {|
     (Ok
-     ((candidates 3) (collected 3) (failed 0) (fills 0) (weight 22) (retries 0)
+     ((candidates 3) (collected 3) (failed 0) (fills 0) (weight 42) (retries 0)
       (resumed true)))
     userFillsByTime 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
     clearinghouseState 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
+    portfolio 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
     |}];
   let%bind dataset = Dataset.load dir in
   List.iter (Or_error.ok_exn dataset).leaders ~f:(fun l ->
@@ -112,15 +115,18 @@ let%expect_test "collect, fail one address, resume, start over" =
   [%expect
     {|
     (Ok
-     ((candidates 3) (collected 3) (failed 0) (fills 0) (weight 66) (retries 0)
+     ((candidates 3) (collected 3) (failed 0) (fills 0) (weight 126) (retries 0)
       (resumed false)))
     GET /leaderboard
     userFillsByTime 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
     clearinghouseState 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
+    portfolio 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
     userFillsByTime 0xf5d81a135f756ca16544e53c20fc20643ec3ad53
     clearinghouseState 0xf5d81a135f756ca16544e53c20fc20643ec3ad53
+    portfolio 0xf5d81a135f756ca16544e53c20fc20643ec3ad53
     userFillsByTime 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
     clearinghouseState 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
+    portfolio 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
     |}];
   let%bind files = Sys.readdir dir in
   let%bind raw = Sys.readdir (dir ^/ "raw") in

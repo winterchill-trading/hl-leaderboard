@@ -1,7 +1,8 @@
 (** [hl-leaderboard collect]: fetch the leaderboard, pick candidates (top [top_n] by pnl
     in each window), then for each candidate walk its [userFillsByTime] history and take
-    one [clearinghouseState]. Every response goes to the raw logs ({!Layout}) as it
-    arrives; the Parquet files are rebuilt from the raw logs at the end.
+    one [clearinghouseState] and one [portfolio] (optional: a failure is logged and
+    skipped). Every response goes to the raw logs ({!Layout}) as it arrives; the Parquet
+    files are rebuilt from the raw logs at the end.
 
     Resumable: the candidate list is fixed in the progress manifest when a run starts, and
     an interrupted run continues with the addresses not yet collected, starting each fill

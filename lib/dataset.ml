@@ -8,6 +8,7 @@ module Leader = struct
     ; row : Board.Row.t option
     ; fills : User_fill.t list
     ; state : (Time_ns.t * Clearinghouse_state.t) option
+    ; portfolio : Portfolio.t option
     }
   [@@deriving sexp_of]
 end
@@ -50,6 +51,13 @@ let load_state dir address =
     | Error _ -> None)
 ;;
 
+let load_portfolio dir address =
+  let%map.Deferred.Or_error entries = Raw_log.read (Layout.portfolio dir address) in
+  List.rev entries
+  |> List.find_map ~f:(fun { Raw_log.Entry.recv_ts = _; body } ->
+    Portfolio.of_string body |> Result.ok)
+;;
+
 let load_candidates dir =
   let path = Layout.candidates dir in
   match%bind Sys.file_exists_exn path with
@@ -70,8 +78,9 @@ let save_candidates dir rows =
 
 let load_leader' dir ~rows address =
   let%bind.Deferred.Or_error fills = load_fills dir address in
-  let%map.Deferred.Or_error state = load_state dir address in
-  { Leader.address; row = Map.find rows address; fills; state }
+  let%bind.Deferred.Or_error state = load_state dir address in
+  let%map.Deferred.Or_error portfolio = load_portfolio dir address in
+  { Leader.address; row = Map.find rows address; fills; state; portfolio }
 ;;
 
 let rows_by_address rows =
