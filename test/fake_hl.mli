@@ -9,9 +9,11 @@ open Hl_protocol
 type t
 
 (** [portfolio], when given, answers every [portfolio] request; without it they get HTTP
-    400, as from hl-sim. *)
+    400, as from hl-sim. [roles], when given, answers [userRole] with the body listed for
+    the address, [{"role":"user"}] for the others; without it they get HTTP 400 too. *)
 val start
   :  ?portfolio:string
+  -> ?roles:(Address.t * string) list
   -> leaderboard:string
   -> fills:(Address.t * User_fill.t list) list
   -> state:string
