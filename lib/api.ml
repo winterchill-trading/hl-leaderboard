@@ -185,6 +185,13 @@ let user_fills_by_time t ~user ~start_time =
        Ok (raw, fills))
 ;;
 
+let user_role t ~user =
+  let%map raw = info t (User_role.yojson_of_t { User_role.user }) in
+  let%bind.Or_error raw in
+  let%map.Or_error role = parse "userRole" raw.body ~f:User_role.response_of_yojson in
+  raw, role
+;;
+
 let portfolio t ~user =
   let%map raw = info t (Portfolio.request user) in
   let%bind.Or_error raw in

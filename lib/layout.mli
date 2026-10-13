@@ -5,6 +5,7 @@
     <dir>/raw/fills/<address>.ndjson      one line per userFillsByTime page
     <dir>/raw/state/<address>.ndjson      one line per clearinghouseState response
     <dir>/raw/portfolio/<address>.ndjson  one line per portfolio response
+    <dir>/raw/role/<address>.ndjson       one line per userRole response
     <dir>/_manifest/progress.sexp         candidates and addresses already collected
     <dir>/_manifest/candidates.json       the candidates' leaderboard rows
     <dir>/leaders.parquet                 one row per candidate
@@ -25,6 +26,7 @@ val candidates : string -> string
 val fills : string -> Address.t -> string
 val state : string -> Address.t -> string
 val portfolio : string -> Address.t -> string
+val role : string -> Address.t -> string
 val progress : string -> string
 val leaders_parquet : string -> string
 val fills_parquet : string -> string

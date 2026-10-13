@@ -71,6 +71,10 @@ val clearinghouse_state
   -> user:Address.t
   -> (Raw.t * Clearinghouse_state.t) Or_error.t Deferred.t
 
+(** [userRole] ({!Hl_protocol.User_role}, weight 60): whether [user] is an ordinary
+    account, an agent (API wallet), a vault or a sub-account. *)
+val user_role : t -> user:Address.t -> (Raw.t * User_role.Role.t) Or_error.t Deferred.t
+
 (** [portfolio] ({!Portfolio}). *)
 val portfolio : t -> user:Address.t -> (Raw.t * Portfolio.t) Or_error.t Deferred.t
 
