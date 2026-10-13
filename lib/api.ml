@@ -54,10 +54,8 @@ let create
   let leaderboard_url =
     match leaderboard_url, network with
     | Some _, _ -> leaderboard_url
-    | None, Mainnet ->
-      Some (Uri.of_string "https://stats-data.hyperliquid.xyz/Mainnet/leaderboard")
-    | None, Testnet ->
-      Some (Uri.of_string "https://stats-data.hyperliquid.xyz/Testnet/leaderboard")
+    | None, Mainnet -> Some (Uri.of_string (Leaderboard.url `Mainnet))
+    | None, Testnet -> Some (Uri.of_string (Leaderboard.url `Testnet))
     | None, Local -> None
   in
   let time_source = Time_source.read_only time_source in
