@@ -62,7 +62,11 @@ let%expect_test "scored fills: perps only, from the first flat point per coin" =
   in
   List.iter (Rank.scored_fills fills) ~f:(fun f ->
     printf "%d %s\n" f.time (Coin.to_string f.coin));
-  [%expect {| |}]
+  [%expect {|
+    3 BTC
+    4 xyz:NVDA
+    5 BTC
+    |}]
 ;;
 
 let%expect_test "rank three leaders" =
@@ -87,9 +91,55 @@ let%expect_test "rank three leaders" =
           ~rank:(e.rank : int option)
           ~address:(e.address : Address.t)
           ~score:(e.score : Hl_copy_core.Score.t)]);
-  [%expect {| |}];
+  [%expect
+    {|
+    ((rank (1)) (address 0x01)
+     (score
+      ((pnl 2450) (return_ 0.32450331125827814)
+       (max_drawdown 0.00013245033112582781) (win_rate 1) (trade_count 25)
+       (avg_hold_ns 3600000000000) (consistency 0.5) (score 0.24334524801543791))))
+    ((rank (2)) (address 0x02)
+     (score
+      ((pnl 1450) (return_ 0.16959064327485379)
+       (max_drawdown 0.022943037974683545) (win_rate 0.52) (trade_count 25)
+       (avg_hold_ns 3600000000000) (consistency 0.5) (score 0.12427478902953584))))
+    ((rank ()) (address 0x03)
+     (score
+      ((pnl 9996) (return_ 2499) (max_drawdown 0.25) (win_rate 1) (trade_count 2)
+       (avg_hold_ns 3600000000000) (consistency 0.25) (score 117.140625))))
+    |}];
   Rank.to_json ~generated_at:Time_ns.epoch (List.take entries 1)
   |> Yojson.Safe.pretty_to_string
   |> print_endline;
-  [%expect {| |}]
+  [%expect
+    {|
+    {
+      "generated_at": "1970-01-01T00:00:00.000000Z",
+      "formula": "score = return * (1 - max_drawdown) * (0.5 + 0.5 * consistency) * min(1, trade_count / 20); see hl-copy-core Score",
+      "leaders": [
+        {
+          "rank": 1,
+          "address": "0x01",
+          "display_name": null,
+          "account_value": 10000.0,
+          "leaderboard": {},
+          "fills": 50,
+          "scored_fills": 50,
+          "first_fill_ms": 1000000,
+          "last_fill_ms": 350200000,
+          "positions": 0,
+          "score": 0.24334524801543791,
+          "components": {
+            "pnl": 2450.0,
+            "return": 0.32450331125827814,
+            "max_drawdown": 0.00013245033112582781,
+            "win_rate": 1.0,
+            "trade_count": 25,
+            "avg_hold_hours": 1.0,
+            "consistency": 0.5
+          }
+        }
+      ]
+    }
+    |}]
 ;;
