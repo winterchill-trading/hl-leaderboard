@@ -8,6 +8,7 @@ module Entry = struct
     { rank : int option
     ; address : Address.t
     ; display_name : string option
+    ; role : User_role.Role.t option
     ; account_value : float
     ; leaderboard : (Board.Window.t * Leaderboard.Performance.t) list
     ; fills : int
@@ -32,6 +33,7 @@ module Entry = struct
       [ "rank", option (fun r -> `Int r) t.rank
       ; "address", `String (Address.to_string t.address)
       ; "display_name", option (fun n -> `String n) t.display_name
+      ; "role", option (fun r -> `String (User_role.Role.to_string r)) t.role
       ; "account_value", `Float t.account_value
       ; ( "leaderboard"
         , `Assoc
@@ -150,6 +152,7 @@ let score_leader ~now_ms (leader : Dataset.Leader.t) =
   { Entry.rank = None
   ; address = leader.address
   ; display_name = Option.bind leader.row ~f:(fun r -> r.display_name)
+  ; role = leader.role
   ; account_value
   ; leaderboard =
       Option.value_map leader.row ~default:[] ~f:(fun r -> r.window_performances)

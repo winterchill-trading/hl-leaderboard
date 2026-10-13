@@ -32,6 +32,8 @@ module Entry : sig
     { rank : int option
     ; address : Address.t
     ; display_name : string option
+    ; role : User_role.Role.t option
+    (** [None] when unknown; JSON: the wire name or null *)
     ; account_value : float
     ; leaderboard : (Board.Window.t * Leaderboard.Performance.t) list
     ; fills : int (** all fills collected *)

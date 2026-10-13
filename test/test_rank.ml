@@ -135,6 +135,7 @@ let%expect_test "rank three leaders" =
           "rank": 1,
           "address": "0x01",
           "display_name": null,
+          "role": null,
           "account_value": 10000.0,
           "leaderboard": {},
           "fills": 50,
