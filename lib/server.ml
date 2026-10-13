@@ -69,37 +69,54 @@ let find_entry ranking address =
 ;;
 
 let leader_json ~dir ~ranking ~limit ~now_ms address =
-  let%map.Deferred.Or_error leader = Dataset.load_leader dir address in
-  let account_value =
-    match leader.state, leader.row with
-    | Some (_, s), _ -> Usd.to_float s.margin_summary.account_value
-    | None, Some r -> r.account_value
-    | None, None -> 0.
-  in
-  let curve =
-    Equity_curve.of_fills ~account_value ~now_ms (Rank.scored_fills leader.fills)
-  in
-  `Assoc
-    [ "address", `String (Address.to_string address)
-    ; ( "entry"
-      , Option.bind ranking ~f:(fun r -> find_entry r address)
-        |> Option.value ~default:`Null )
-    ; "fill_count", `Int (List.length leader.fills)
-    ; ( "fills"
-      , `List
-          (List.rev leader.fills
-           |> Fn.flip List.take limit
-           |> List.map ~f:User_fill.yojson_of_t) )
-    ; ( "equity_curve"
-      , `List
-          (List.map curve ~f:(fun (p : Equity_curve.Point.t) ->
-             `List [ `Int p.time_ms; `Float p.equity ])) )
-    ; ( "positions"
-      , match leader.state with
-        | None -> `List []
-        | Some (_, s) ->
-          `List (List.map s.positions ~f:Clearinghouse_state.Position.yojson_of_t) )
-    ]
+  let%bind.Deferred.Or_error leader = Dataset.load_leader dir address in
+  if Option.is_none leader.row
+     && Option.is_none leader.state
+     && List.is_empty leader.fills
+  then return (Ok None)
+  else (
+    let account_value =
+      match leader.state, leader.row with
+      | Some (_, s), _ -> Usd.to_float s.margin_summary.account_value
+      | None, Some r -> r.account_value
+      | None, None -> 0.
+    in
+    let curve =
+      Equity_curve.of_fills ~account_value ~now_ms (Rank.scored_fills leader.fills)
+    in
+    `Assoc
+      [ "address", `String (Address.to_string address)
+      ; ( "entry"
+        , Option.bind ranking ~f:(fun r -> find_entry r address)
+          |> Option.value ~default:`Null )
+      ; "fill_count", `Int (List.length leader.fills)
+      ; ( "fills"
+        , `List
+            (List.rev leader.fills
+             |> Fn.flip List.take limit
+             |> List.map ~f:User_fill.yojson_of_t) )
+      ; ( "equity_curve"
+        , `List
+            (List.map curve ~f:(fun (p : Equity_curve.Point.t) ->
+               `List [ `Int p.time_ms; `Float p.equity ])) )
+      ; ( "positions"
+        , match leader.state with
+          | None -> `List []
+          | Some (_, s) ->
+            `List (List.map s.positions ~f:Clearinghouse_state.Position.yojson_of_t) )
+      ]
+    |> Option.some
+    |> Or_error.return
+    |> return)
+;;
+
+let parse_address s =
+  let s = String.lowercase s in
+  if String.length s = 42
+     && String.is_prefix s ~prefix:"0x"
+     && String.for_all (String.drop_prefix s 2) ~f:Char.is_hex_digit
+  then Some (Address.of_string s)
+  else None
 ;;
 
 let limit_of uri ~default =
@@ -129,16 +146,15 @@ let start ~dir ~leaders ~port =
           | Some json ->
             respond_json (with_leaders json (List.take (leaders_of json) limit))))
     | `GET, [ "leaders"; address ] ->
-      (match
-         limit_of uri ~default:500, Option.try_with (fun () -> Address.of_string address)
-       with
+      (match limit_of uri ~default:500, parse_address address with
        | Error msg, _ -> error `Bad_request msg
-       | _, None -> error `Bad_request "bad address"
+       | _, None -> error `Bad_request "address must be 0x and 40 hex digits"
        | Ok limit, Some address ->
          let%bind ranking_json = Ranking.get ranking in
          let now_ms = Time_ns.to_int_ns_since_epoch (Time_ns.now ()) / 1_000_000 in
          (match%bind leader_json ~dir ~ranking:ranking_json ~limit ~now_ms address with
-          | Ok json -> respond_json json
+          | Ok (Some json) -> respond_json json
+          | Ok None -> error `Not_found "address not collected"
           | Error e -> error `Internal_server_error (Error.to_string_hum e)))
     | `GET, _ -> error `Not_found "not found"
     | _ -> error `Method_not_allowed "read-only API"
