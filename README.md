@@ -35,8 +35,9 @@ as an `/info` request; `-base-url` and `-leaderboard-url` point anywhere else.
    The leaderboard lists vaults (HLP is 8th by all-time pnl), sub-accounts and API
    wallets next to traders; a skipped row makes room for the next one in that window, so
    each window still yields `-top` candidates. Roles are asked only for the rows the
-   walk reaches, once per address. A server without `userRole` (hl-sim) keeps every row,
-   with no role.
+   walk reaches, once per address. A row whose role cannot be read (the request still
+   fails after its retries) is skipped on mainnet and testnet; only `-network local`
+   keeps it, with no role, because hl-sim does not serve `userRole` yet.
 2. For each candidate: `userFillsByTime` from `-lookback-days` ago, paged forward
    (`Fill_pages`: at most 2000 fills per page, the next page starts at the newest time of
    the previous one and repeats are dropped by `(tid, oid)`), at most `-max-pages` pages;

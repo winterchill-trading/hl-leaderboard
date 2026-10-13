@@ -218,3 +218,33 @@ let%expect_test "collect skips a vault and a sub-account and records the roles" 
     |}];
   Fake_hl.close server
 ;;
+
+let%expect_test "off the simulator, an address without a role is not a candidate" =
+  Log.Global.set_output [];
+  let%bind dir = Unix.mkdtemp "/tmp/hl-leaderboard-strict" in
+  (* No [roles]: every userRole request gets HTTP 400, which is not retried. *)
+  let%bind server =
+    Fake_hl.start
+      ~leaderboard:(In_channel.read_all "fixtures/leaderboard.json")
+      ~fills:[]
+      ~state:(In_channel.read_all "fixtures/clearinghouse_state.json")
+      ()
+  in
+  let api =
+    Api.create
+      ~base_url:(Fake_hl.base_url server)
+      ~leaderboard_url:(Fake_hl.leaderboard_url server)
+      ~rate_limit:(Rate_limit.create ~refill_per_minute:1_000_000_000 ())
+      ~max_attempts:2
+      Testnet
+  in
+  let%bind summary = Collect.run ~now:(fun () -> now) api (config dir) in
+  print_s [%sexp (summary : Collect.Summary.t Or_error.t)];
+  [%expect
+    {|
+    (Ok
+     ((candidates 0) (excluded 6) (collected 0) (failed 0) (fills 0) (weight 360)
+      (retries 0) (resumed false)))
+    |}];
+  Fake_hl.close server
+;;

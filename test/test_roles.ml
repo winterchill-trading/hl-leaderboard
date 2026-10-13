@@ -29,6 +29,7 @@ let run ~roles =
       ~n:2
       ~windows:[ Week; All_time ]
       ~roles
+      ~keep_unknown:false
       ~role_of:(role_of ~asked)
   in
   print_s
@@ -39,7 +40,7 @@ let run ~roles =
            : Address.t list)
         ~excluded:
           (List.map excluded ~f:(fun ((r : Board.Row.t), role) -> r.eth_address, role)
-           : (Address.t * User_role.Role.t) list)
+           : (Address.t * User_role.Role.t option) list)
         ~asked:(Queue.to_list asked : Address.t list)]
 ;;
 
@@ -54,9 +55,9 @@ let%expect_test "vaults and sub-accounts make room for the next rows" =
        0x8c625ff57d8a4374784c7eff585dfdc42ccec974
        0x85ecf584f25db6f146718b86d493e33c5af72052))
      (excluded
-      ((0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf Vault)
+      ((0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf (Vault))
        (0x399965e15d4e61ec3529cc98b7f7ebb93b733336
-        (Sub_account (master 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf)))))
+        ((Sub_account (master 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf))))))
      (asked
       (0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
        0xf5d81a135f756ca16544e53c20fc20643ec3ad53
@@ -85,8 +86,13 @@ let%expect_test "accepting every role selects what Board.candidates selects" =
   Deferred.List.iter ~how:`Sequential [ 1; 2; 3; 6 ] ~f:(fun n ->
     let windows = Board.Window.all in
     let%map selected, excluded =
-      Roles.candidates board ~n ~windows ~roles:Roles.names ~role_of:(fun _ ->
-        return (Some User_role.Role.Vault))
+      Roles.candidates
+        board
+        ~n
+        ~windows
+        ~roles:Roles.names
+        ~keep_unknown:false
+        ~role_of:(fun _ -> return (Some User_role.Role.Vault))
     in
     let expected = Board.candidates board ~n ~windows in
     print_s
@@ -114,17 +120,65 @@ let%expect_test "an unknown role is accepted; unknown names are rejected" =
   print_s
     [%message
       ""
-        ~unknown:(Roles.accepts ~roles:Roles.default None : bool)
-        ~agent:(Roles.accepts ~roles:Roles.default (Some (Agent { user = vault })) : bool)
-        ~other:(Roles.accepts ~roles:Roles.names (Some (Other "new")) : bool)];
+        ~unknown_kept:(Roles.accepts ~keep_unknown:true ~roles:Roles.default None : bool)
+        ~unknown_strict:
+          (Roles.accepts ~keep_unknown:false ~roles:Roles.default None : bool)
+        ~agent:
+          (Roles.accepts
+             ~keep_unknown:false
+             ~roles:Roles.default
+             (Some (Agent { user = vault }))
+           : bool)
+        ~other:
+          (Roles.accepts ~keep_unknown:true ~roles:Roles.names (Some (Other "new"))
+           : bool)];
   List.iter [ "vault"; "subAccount"; "hlp" ] ~f:(fun s ->
     print_s [%sexp (Command.Arg_type.parse Roles.arg_type s : string Or_error.t)]);
   [%expect
     {|
-    ((unknown true) (agent false) (other false))
+    ((unknown_kept true) (unknown_strict false) (agent false) (other false))
     (Ok vault)
     (Ok subAccount)
     (Error ("unknown role" hlp (expected (user agent vault subAccount missing))))
     |}];
   return ()
+;;
+
+let%expect_test "an unanswered role is dropped unless unknown roles are kept" =
+  Deferred.List.iter ~how:`Sequential [ false; true ] ~f:(fun keep_unknown ->
+    let%map candidates, excluded =
+      Roles.candidates
+        (board ())
+        ~n:2
+        ~windows:[ Week ]
+        ~roles:Roles.default
+        ~keep_unknown
+        ~role_of:(fun address ->
+          return (if Address.equal address vault then None else Some User_role.Role.User))
+    in
+    print_s
+      [%message
+        ""
+          (keep_unknown : bool)
+          ~candidates:
+            (List.map candidates ~f:(fun (r : Board.Row.t) -> r.eth_address)
+             : Address.t list)
+          ~excluded:
+            (List.map excluded ~f:(fun ((r : Board.Row.t), role) -> r.eth_address, role)
+             : (Address.t * User_role.Role.t option) list)])
+  |> fun d ->
+  let%map () = d in
+  [%expect
+    {|
+    ((keep_unknown false)
+     (candidates
+      (0xf5d81a135f756ca16544e53c20fc20643ec3ad53
+       0x399965e15d4e61ec3529cc98b7f7ebb93b733336))
+     (excluded ((0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf ()))))
+    ((keep_unknown true)
+     (candidates
+      (0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
+       0xf5d81a135f756ca16544e53c20fc20643ec3ad53))
+     (excluded ()))
+    |}]
 ;;

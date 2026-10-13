@@ -64,10 +64,12 @@ let start_run ~now api (config : Config.t) =
       in
       Some role
     | Error e ->
-      (* hl-sim has no [userRole]; the address is then kept, with no role. *)
       Log.Global.info_s [%message "no role" (address : Address.t) (e : Error.t)];
       return None
   in
+  (* An address whose role cannot be read is kept only against hl-sim, which does not
+     serve [userRole] yet. Once it does, drop this exception and be strict everywhere. *)
+  let keep_unknown = [%equal: Api.Network.t] (Api.network api) Local in
   let%bind rows, excluded =
     Roles.candidates
       ~min_account_value:config.min_account_value
@@ -75,12 +77,13 @@ let start_run ~now api (config : Config.t) =
       ~n:config.top_n
       ~windows:config.windows
       ~roles:config.roles
+      ~keep_unknown
       ~role_of
   in
   List.iter excluded ~f:(fun ((row : Board.Row.t), role) ->
     Log.Global.info_s
       [%message
-        "skipped" ~address:(row.eth_address : Address.t) (role : User_role.Role.t)]);
+        "skipped" ~address:(row.eth_address : Address.t) (role : User_role.Role.t option)]);
   Log.Global.info_s
     [%message
       "leaderboard"
