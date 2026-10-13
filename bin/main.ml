@@ -43,6 +43,13 @@ let collect =
          "max-pages"
          (optional_with_default 5 int)
          ~doc:"P fill pages of 2000 per leader and run (5)"
+     and roles =
+       flag
+         "include-roles"
+         (optional (Arg_type.comma_separated Roles.arg_type))
+         ~doc:
+           "R,.. userRole values that may be candidates: user, agent, vault, subAccount, \
+            missing (user)"
      and weight_per_minute =
        flag
          "weight-per-minute"
@@ -65,6 +72,7 @@ let collect =
          ; min_account_value
          ; lookback = Time_ns.Span.of_day lookback_days
          ; max_pages
+         ; roles = Option.value roles ~default:Roles.default
          }
        in
        let%map.Deferred.Or_error summary = Collect.run api config in
