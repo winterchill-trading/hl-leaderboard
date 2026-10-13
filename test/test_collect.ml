@@ -66,10 +66,13 @@ let%expect_test "collect, fail one address, resume, start over" =
   [%expect
     {|
     (Ok
-     ((candidates 3) (collected 2) (failed 1) (fills 4500) (weight 372)
-      (retries 2) (resumed false)))
+     ((candidates 3) (excluded 0) (collected 2) (failed 1) (fills 4500)
+      (weight 552) (retries 2) (resumed false)))
     GET /leaderboard
-    userFillsByTime 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
+    userRole 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
+    userRole 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
+    userRole 0xf5d81a135f756ca16544e53c20fc20643ec3ad53
+    userRole 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
     userFillsByTime 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
     userFillsByTime 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
     userFillsByTime 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
@@ -89,8 +92,8 @@ let%expect_test "collect, fail one address, resume, start over" =
   [%expect
     {|
     (Ok
-     ((candidates 3) (collected 3) (failed 0) (fills 0) (weight 42) (retries 0)
-      (resumed true)))
+     ((candidates 3) (excluded 0) (collected 3) (failed 0) (fills 0) (weight 42)
+      (retries 0) (resumed true)))
     userFillsByTime 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
     clearinghouseState 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
     portfolio 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
@@ -115,9 +118,12 @@ let%expect_test "collect, fail one address, resume, start over" =
   [%expect
     {|
     (Ok
-     ((candidates 3) (collected 3) (failed 0) (fills 0) (weight 126) (retries 0)
-      (resumed false)))
+     ((candidates 3) (excluded 0) (collected 3) (failed 0) (fills 0) (weight 306)
+      (retries 0) (resumed false)))
     GET /leaderboard
+    userRole 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
+    userRole 0xf5d81a135f756ca16544e53c20fc20643ec3ad53
+    userRole 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
     userFillsByTime 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
     clearinghouseState 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
     portfolio 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf

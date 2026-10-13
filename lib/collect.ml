@@ -10,6 +10,7 @@ module Config = struct
     ; min_account_value : float
     ; lookback : Time_ns.Span.t
     ; max_pages : int
+    ; roles : string list
     }
   [@@deriving sexp_of]
 
@@ -20,6 +21,7 @@ module Config = struct
     ; min_account_value = 10_000.
     ; lookback = Time_ns.Span.of_day 30.
     ; max_pages = 5
+    ; roles = Roles.default
     }
   ;;
 end
@@ -27,6 +29,7 @@ end
 module Summary = struct
   type t =
     { candidates : int
+    ; excluded : int
     ; collected : int
     ; failed : int
     ; fills : int
@@ -53,16 +56,37 @@ let start_run ~now api (config : Config.t) =
       ~recv_ts:raw.recv_ts
       (compact raw.body)
   in
-  let rows =
-    Board.candidates
+  let role_of address =
+    match%bind Api.user_role api ~user:address with
+    | Ok (raw, role) ->
+      let%map () =
+        Raw_log.append (Layout.role config.dir address) ~recv_ts:raw.recv_ts raw.body
+      in
+      Some role
+    | Error e ->
+      (* hl-sim has no [userRole]; the address is then kept, with no role. *)
+      Log.Global.info_s [%message "no role" (address : Address.t) (e : Error.t)];
+      return None
+  in
+  let%bind rows, excluded =
+    Roles.candidates
       ~min_account_value:config.min_account_value
       board
       ~n:config.top_n
       ~windows:config.windows
+      ~roles:config.roles
+      ~role_of
   in
+  List.iter excluded ~f:(fun ((row : Board.Row.t), role) ->
+    Log.Global.info_s
+      [%message
+        "skipped" ~address:(row.eth_address : Address.t) (role : User_role.Role.t)]);
   Log.Global.info_s
     [%message
-      "leaderboard" ~rows:(List.length board : int) ~candidates:(List.length rows : int)];
+      "leaderboard"
+        ~rows:(List.length board : int)
+        ~candidates:(List.length rows : int)
+        ~excluded:(List.length excluded : int)];
   let%bind () = Dataset.save_candidates config.dir rows in
   let progress =
     { Progress.started = now ()
@@ -71,7 +95,7 @@ let start_run ~now api (config : Config.t) =
     }
   in
   let%map () = Progress.save (Layout.progress config.dir) progress in
-  Ok progress
+  Ok (progress, List.length excluded)
 ;;
 
 let collect_one ~now api (config : Config.t) address =
@@ -124,12 +148,12 @@ let collect_one ~now api (config : Config.t) address =
 let run ?(now = Time_ns.now) api (config : Config.t) =
   let path = Layout.progress config.dir in
   let%bind.Deferred.Or_error existing = Progress.load path in
-  let%bind.Deferred.Or_error progress, resumed =
+  let%bind.Deferred.Or_error progress, excluded, resumed =
     match existing with
-    | Some p when not (List.is_empty (Progress.pending p)) -> return (Ok (p, true))
+    | Some p when not (List.is_empty (Progress.pending p)) -> return (Ok (p, 0, true))
     | _ ->
-      let%map.Deferred.Or_error p = start_run ~now api config in
-      p, false
+      let%map.Deferred.Or_error p, excluded = start_run ~now api config in
+      p, excluded, false
   in
   let failed = ref 0 in
   let fills = ref 0 in
@@ -157,6 +181,7 @@ let run ?(now = Time_ns.now) api (config : Config.t) =
       Or_error.try_with (fun () -> Parquet_out.write ~dir:config.dir dataset))
   in
   { Summary.candidates = List.length progress.candidates
+  ; excluded
   ; collected = List.length progress.collected
   ; failed = !failed
   ; fills = !fills
