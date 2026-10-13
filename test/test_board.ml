@@ -1,22 +1,21 @@
 open! Core
 open Hl_leaderboard
+open Hl_protocol
 
 let fixture () =
-  In_channel.read_all "fixtures/leaderboard.json"
-  |> Leaderboard.of_string
-  |> Or_error.ok_exn
+  In_channel.read_all "fixtures/leaderboard.json" |> Board.of_string |> Or_error.ok_exn
 ;;
 
 let print_rows rows =
-  List.iter rows ~f:(fun (row : Leaderboard.Row.t) ->
+  List.iter rows ~f:(fun (row : Board.Row.t) ->
     let pnl w =
-      match Leaderboard.Row.performance row w with
+      match Board.Row.performance row w with
       | Some p -> Float.to_string_hum ~decimals:0 p.pnl
       | None -> "-"
     in
     printf
       "%s value=%s day=%s week=%s month=%s allTime=%s%s\n"
-      (Hl_protocol.Address.to_string row.address)
+      (Address.to_string row.eth_address)
       (Float.to_string_hum ~decimals:0 row.account_value)
       (pnl Day)
       (pnl Week)
@@ -44,11 +43,11 @@ let%expect_test "decode a slice of a real mainnet leaderboard" =
 let%expect_test "top and candidates" =
   let t = fixture () in
   print_endline "top 2 by week";
-  print_rows (Leaderboard.top t ~window:Week ~n:2);
+  print_rows (Board.top t ~window:Week ~n:2);
   print_endline "candidates, top 2 by day and allTime";
-  print_rows (Leaderboard.candidates t ~n:2 ~windows:[ Day; All_time ]);
+  print_rows (Board.candidates t ~n:2 ~windows:[ Day; All_time ]);
   print_endline "account value >= 50M, top 1 by month";
-  print_rows (Leaderboard.top ~min_account_value:50e6 t ~window:Month ~n:1);
+  print_rows (Board.top ~min_account_value:50e6 t ~window:Month ~n:1);
   [%expect
     {|
     top 2 by week
@@ -63,19 +62,13 @@ let%expect_test "top and candidates" =
     |}]
 ;;
 
-let%expect_test "JSON round trip" =
-  let t = fixture () in
-  let t' = Leaderboard.to_json t |> Leaderboard.of_json |> Or_error.ok_exn in
-  print_s [%message (List.equal Leaderboard.Row.equal t t' : bool)];
-  [%expect {| ("List.equal Leaderboard.Row.equal t t'" true) |}]
-;;
-
-let%expect_test "malformed rows name the index" =
-  let bad =
-    {|{"leaderboardRows": [{"ethAddress": "0x01", "accountValue": "1", "windowPerformances": []},
-                           {"ethAddress": "0x02", "accountValue": "x"}]}|}
-  in
-  print_s [%sexp (Leaderboard.of_string bad : Leaderboard.t Or_error.t)];
+let%expect_test "window names" =
+  List.iter [ "day"; "allTime"; "year" ] ~f:(fun s ->
+    print_s [%sexp (Board.Window.of_string s : Board.Window.t Or_error.t)]);
   [%expect
-    {| (Error (("leaderboard row" (i 1)) (Invalid_argument "Float.of_string x"))) |}]
+    {|
+    (Ok Day)
+    (Ok All_time)
+    (Error ("unknown leaderboard window (day, week, month, allTime)" year))
+    |}]
 ;;

@@ -150,7 +150,7 @@ let leaderboard t =
     | None -> info t (`Assoc [ "type", `String "leaderboard" ])
   in
   let%bind.Or_error raw in
-  let%map.Or_error lb = Leaderboard.of_string raw.body in
+  let%map.Or_error lb = Board.of_string raw.body in
   raw, lb
 ;;
 

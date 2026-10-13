@@ -53,7 +53,7 @@ module Raw : sig
 end
 
 (** The whole leaderboard. *)
-val leaderboard : t -> (Raw.t * Leaderboard.t) Or_error.t Deferred.t
+val leaderboard : t -> (Raw.t * Board.t) Or_error.t Deferred.t
 
 (** [POST /info] with an arbitrary body ([{"type": ...}]), rate limited and retried. *)
 val info : t -> Yojson.Safe.t -> Raw.t Or_error.t Deferred.t
