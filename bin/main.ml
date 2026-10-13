@@ -88,8 +88,8 @@ let rank =
      and min_trades =
        flag
          "min-trades"
-         (optional_with_default 5 int)
-         ~doc:"N round trips needed to be ranked (5)"
+         (optional_with_default Rank.default_min_trades int)
+         ~doc:(sprintf "N round trips needed to be ranked (%d)" Rank.default_min_trades)
      and print =
        flag "print" (optional_with_default 10 int) ~doc:"N print the top N (10)"
      in

@@ -173,7 +173,9 @@ let score_leader ~now_ms (leader : Dataset.Leader.t) =
   }
 ;;
 
-let rank ?(min_trades = 5) ~now_ms (dataset : Dataset.t) =
+let default_min_trades = 5
+
+let rank ?(min_trades = default_min_trades) ~now_ms (dataset : Dataset.t) =
   let entries = List.map dataset.leaders ~f:(score_leader ~now_ms) in
   let ranked, unranked =
     List.partition_tf entries ~f:(fun e -> e.score.trade_count >= min_trades)

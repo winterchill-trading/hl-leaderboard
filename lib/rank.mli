@@ -62,7 +62,12 @@ val equity_curve
 val to_copy_fill : User_fill.t -> Hl_copy_core.Fill.t
 val score_leader : now_ms:int -> Dataset.Leader.t -> Entry.t
 
-(** Best score first, ties to the lower address; [min_trades] defaults to 5. *)
+(** 5 round trips: below it a leader is listed unranked. The [rank] command's
+    [-min-trades] default. *)
+val default_min_trades : int
+
+(** Best score first, ties to the lower address; [min_trades] defaults to
+    {!default_min_trades}. *)
 val rank : ?min_trades:int -> now_ms:int -> Dataset.t -> Entry.t list
 
 (** [{"generated_at": ..., "formula": ..., "leaders": [...]}] *)
