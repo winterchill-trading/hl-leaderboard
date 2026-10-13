@@ -1,7 +1,16 @@
 open! Core
 open Hl_protocol
 
-let leaderboard dir = dir ^/ "raw" ^/ "leaderboard.ndjson"
+let leaderboard dir time =
+  let date, ofday = Time_ns.to_date_ofday time ~zone:Time_float.Zone.utc in
+  let p = Time_ns.Span.to_parts (Time_ns.Ofday.to_span_since_start_of_day ofday) in
+  dir
+  ^/ "raw"
+  ^/ "leaderboard"
+  ^/ sprintf "%sT%02d-%02d.ndjson" (Date.to_string date) p.hr p.min
+;;
+
+let candidates dir = dir ^/ "_manifest" ^/ "candidates.json"
 let fills dir address = dir ^/ "raw" ^/ "fills" ^/ Address.to_string address ^ ".ndjson"
 let state dir address = dir ^/ "raw" ^/ "state" ^/ Address.to_string address ^ ".ndjson"
 let progress dir = dir ^/ "_manifest" ^/ "progress.sexp"

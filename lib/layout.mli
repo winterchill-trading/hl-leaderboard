@@ -1,10 +1,11 @@
 (** Files of a collection directory:
 
     {v
-    <dir>/raw/leaderboard.ndjson          one line per leaderboard fetch
+    <dir>/raw/leaderboard/<minute>.ndjson one file per leaderboard fetch (40 MB)
     <dir>/raw/fills/<address>.ndjson      one line per userFillsByTime page
     <dir>/raw/state/<address>.ndjson      one line per clearinghouseState response
     <dir>/_manifest/progress.sexp         candidates and addresses already collected
+    <dir>/_manifest/candidates.json       the candidates' leaderboard rows
     <dir>/leaders.parquet                 one row per candidate
     <dir>/fills.parquet                   every fill of every candidate
     v}
@@ -16,7 +17,10 @@
 open! Core
 open Hl_protocol
 
-val leaderboard : string -> string
+(** [<minute>] is [2026-10-13T06-25] (UTC). *)
+val leaderboard : string -> Time_ns.t -> string
+
+val candidates : string -> string
 val fills : string -> Address.t -> string
 val state : string -> Address.t -> string
 val progress : string -> string
