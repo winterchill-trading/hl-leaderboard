@@ -159,3 +159,62 @@ let%expect_test "collect, fail one address, resume, start over" =
     |}];
   Fake_hl.close server
 ;;
+
+let%expect_test "collect skips a vault and a sub-account and records the roles" =
+  Log.Global.set_output [];
+  let%bind dir = Unix.mkdtemp "/tmp/hl-leaderboard-roles" in
+  (* Bodies as returned by mainnet for HLP and for a sub-account. *)
+  let%bind server =
+    Fake_hl.start
+      ~roles:
+        [ a1, {|{"role":"vault"}|}
+        ; ( a3
+          , sprintf
+              {|{"role":"subAccount","data":{"master":"%s"}}|}
+              (Address.to_string a1) )
+        ]
+      ~leaderboard:(In_channel.read_all "fixtures/leaderboard.json")
+      ~fills:[]
+      ~state:(In_channel.read_all "fixtures/clearinghouse_state.json")
+      ()
+  in
+  let%bind summary = Collect.run ~now:(fun () -> now) (api server) (config dir) in
+  print_s [%sexp (summary : Collect.Summary.t Or_error.t)];
+  List.filter (Fake_hl.requests server) ~f:(String.is_prefix ~prefix:"userRole")
+  |> List.iter ~f:print_endline;
+  [%expect
+    {|
+    (Ok
+     ((candidates 3) (excluded 2) (collected 3) (failed 0) (fills 0) (weight 426)
+      (retries 0) (resumed false)))
+    userRole 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
+    userRole 0xf5d81a135f756ca16544e53c20fc20643ec3ad53
+    userRole 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
+    userRole 0x8c625ff57d8a4374784c7eff585dfdc42ccec974
+    userRole 0x85ecf584f25db6f146718b86d493e33c5af72052
+    |}];
+  let%bind dataset = Dataset.load dir in
+  let dataset = Or_error.ok_exn dataset in
+  List.iter dataset.leaders ~f:(fun l ->
+    printf
+      "%s role=%s\n"
+      (Address.to_string l.address)
+      (Option.value_map l.role ~default:"-" ~f:User_role.Role.to_string));
+  Rank.rank ~now_ms dataset
+  |> List.iter ~f:(fun e ->
+    print_endline
+      (Yojson.Safe.to_string (Yojson.Safe.Util.member "role" (Rank.Entry.to_json e))));
+  let%bind roles = Sys.readdir (dir ^/ "raw" ^/ "role") in
+  print_s [%sexp (List.length (Array.to_list roles) : int)];
+  [%expect
+    {|
+    0xf5d81a135f756ca16544e53c20fc20643ec3ad53 role=user
+    0x8c625ff57d8a4374784c7eff585dfdc42ccec974 role=user
+    0x85ecf584f25db6f146718b86d493e33c5af72052 role=user
+    "user"
+    "user"
+    "user"
+    5
+    |}];
+  Fake_hl.close server
+;;
