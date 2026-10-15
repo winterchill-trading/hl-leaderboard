@@ -68,6 +68,17 @@ let find_entry ranking address =
     | _ -> false)
 ;;
 
+(* The leader-scoring report [rank] wrote; [null] before the first ranking with it. *)
+let report_json ~dir address =
+  let path = Layout.report dir address in
+  match%map Monitor.try_with (fun () -> Reader.file_contents path) with
+  | Error _ -> `Null
+  | Ok body ->
+    (match Yojson.Safe.from_string body with
+     | json -> json
+     | exception _ -> `Null)
+;;
+
 let leader_json ~dir ~ranking ~limit ~now_ms address =
   let%bind.Deferred.Or_error leader = Dataset.load_leader dir address in
   if Option.is_none leader.row
@@ -75,6 +86,7 @@ let leader_json ~dir ~ranking ~limit ~now_ms address =
      && List.is_empty leader.fills
   then return (Ok None)
   else (
+    let%bind report = report_json ~dir address in
     let curve, source = Rank.equity_curve ~now_ms leader in
     `Assoc
       [ "address", `String (Address.to_string address)
@@ -101,6 +113,7 @@ let leader_json ~dir ~ranking ~limit ~now_ms address =
           | None -> `List []
           | Some (_, s) ->
             `List (List.map s.positions ~f:Clearinghouse_state.Position.yojson_of_t) )
+      ; "report", report
       ]
     |> Option.some
     |> Or_error.return
@@ -134,6 +147,7 @@ let start ~dir ~leaders ~port =
     in
     match Cohttp.Request.meth req, parts with
     | `GET, [ "health" ] -> respond_json (`String "ok")
+    | `GET, [ "scoring"; "metrics" ] -> respond_json (Leader_scoring.Report.catalog_json ())
     | `GET, [ "leaders" ] ->
       (match limit_of uri ~default:Int.max_value with
        | Error msg -> error `Bad_request msg
