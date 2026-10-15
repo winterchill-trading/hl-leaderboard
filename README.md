@@ -40,8 +40,11 @@ and `userRole` as `/info` requests; `-base-url` and `-leaderboard-url` point any
 2. For each candidate: `userFillsByTime` from `-lookback-days` ago, paged forward
    (`Fill_pages`: at most 2000 fills per page, the next page starts at the newest time of
    the previous one and repeats are dropped by `(tid, oid)`), at most `-max-pages` pages;
-   then one `clearinghouseState` and one `portfolio` (optional; hl-sim has none).
-3. Rebuilds `leaders.parquet` and `fills.parquet` from the raw logs.
+   then one `clearinghouseState`, one `portfolio` and the `userFunding` pages since the
+   newest payment logged (the last two optional; hl-sim has neither).
+3. For the copy-cost estimate: one `l2Book` for each of the 25 coins the candidates
+   trade most by notional, and one `metaAndAssetCtxs` for open interest (optional).
+4. Rebuilds `leaders.parquet` and `fills.parquet` from the raw logs.
 
 Every response is appended to the raw logs as it arrives, in market-recorder's line
 format (`<recv_ts> <body>`, ISO 8601 UTC with microseconds). The candidate list is fixed
@@ -56,6 +59,10 @@ data/
   raw/state/<address>.ndjson                     one line per clearinghouseState
   raw/portfolio/<address>.ndjson                 one line per portfolio
   raw/role/<address>.ndjson                      one line per userRole, skipped rows too
+  raw/funding/<address>.ndjson                   one line per userFunding page
+  raw/books/<coin>.ndjson                        one line per l2Book
+  raw/market/meta_and_asset_ctxs.ndjson          one line per metaAndAssetCtxs
+  reports/<address>.json                         leader-scoring report, written by rank
   _manifest/progress.sexp                        candidates and addresses done
   _manifest/candidates.json                      the candidates' leaderboard rows
   leaders.parquet                                one row per candidate, with its role
@@ -110,12 +117,30 @@ What this repository feeds it:
 - Leaders with fewer than `-min-trades` round trips are listed after the ranked ones,
   with `rank: null`.
 
+## leader-scoring
+
+`rank` also scores every collected leader with
+[leader-scoring](https://github.com/winterchill-trading/leader-scoring) (`Scoring`, skip
+with `-no-scoring`): a track record rebuilt from the raw logs (fills with their
+liquidation flags, funding, every `clearinghouseState` taken, the `portfolio` month
+curve), 34 metrics, a weighted percentile composite across the collected leaders, the
+learned model's forecast of the next 30 days' Sharpe ratio, a capacity curve from the
+collected books, and alerts. Each leader's full report goes to `reports/<address>.json`
+(before `leaders.json`, so the server never sees a ranking without its reports), and
+every ranking entry gains a `scoring` summary. The legacy score above, its `rank` and the
+order of `leaders.json` are unchanged.
+
+On the local copy stack (hl-sim with three leaders and 40 noise traders, 2026-10-16):
+`collect -top 10` took 3 minutes (63k fills, 5005 weight), `rank` 1.8 s for 10 leaders
+including the reports.
+
 ## API
 
 | Request | Response |
 | --- | --- |
-| `GET /leaders[?limit=N]` | The ranking file: `generated_at`, `formula`, `leaders` (rank, address, display name, `role` (`userRole` name or null), account value, leaderboard windows, fill counts, `curve_source`, `truncated`, `score` and `components`); re-read when the file changes |
-| `GET /leaders/<address>[?limit=N]` | `entry` (the ranking entry or null), `fill_count`, `fills` (newest first, default 500), `equity_curve` (`[[time_ms, equity], ...]`), `curve_source`, `positions` (latest `clearinghouseState`) |
+| `GET /leaders[?limit=N]` | The ranking file: `generated_at`, `formula`, `leaders` (rank, address, display name, `role` (`userRole` name or null), account value, leaderboard windows, fill counts, `curve_source`, `truncated`, `score`, `components` and `scoring`: composite score, rank, percentile, eligibility, forecast, capacity, alert count and worst severity, headline metrics); re-read when the file changes |
+| `GET /leaders/<address>[?limit=N]` | `entry` (the ranking entry or null), `fill_count`, `fills` (newest first, default 500), `equity_curve` (`[[time_ms, equity], ...]`), `curve_source`, `positions` (latest `clearinghouseState`), `report` (the leader-scoring report: metrics, score components, forecast, equity curve, capacity curve, alerts; null before a ranking with it) |
+| `GET /scoring/metrics` | Every leader-scoring metric with label, unit, direction and formula |
 | `GET /health` | `"ok"` |
 
 A malformed address is a 400, an address with nothing collected a 404. Every response has
@@ -137,6 +162,7 @@ A malformed address is a 400, an address with nothing collected a 404. Every res
 | `Dataset` | A collection directory read back from the raw logs |
 | `Parquet_out` | `leaders.parquet` and `fills.parquet` |
 | `Rank` | Score input, ranking and its JSON |
+| `Scoring` | leader-scoring reports from the raw logs, summaries for the ranking |
 | `Server` | The JSON API |
 
 `Hl_client.Leaderboard.fetch`, `Hl_client.Info.user_fills_by_time` and
