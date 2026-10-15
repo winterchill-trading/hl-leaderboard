@@ -46,8 +46,9 @@ Format only this repository, after the tests pass:
 
 - Core style: `open! Core`, an `.mli` for every module, labelled arguments, expect tests and
   Base_quickcheck properties.
-- The scoring lives in `hl-copy-core` (`Score`). This repository does not reimplement it;
-  it feeds the scorer and serves the result.
+- The scoring lives in `hl-copy-core` (`Score`) and `leader-scoring` (metrics, composite,
+  forecast, capacity, alerts). This repository does not reimplement either; it feeds them
+  (`Rank`, `Scoring`) and serves the result.
 - Requests are read only. No code path here signs or sends an exchange action.
 - Collection is resumable through `_manifest/progress.sexp`; a change to its format needs a
   migration note in the README.
@@ -55,8 +56,11 @@ Format only this repository, after the tests pass:
 
 ## Dependencies and dependents
 
-- Depends on `hl-copy-core`, `hl-client`, `hl-protocol`, `market-data`, `parquet`, `venue-net`,
-  `exchange-core` and `fixed-decimal`. The pin order is in `.github/workflows/ci.yml`.
+- Depends on `hl-copy-core`, `leader-scoring` and `leader-scoring-hl` (one repository,
+  `../leader-scoring`), `hl-client`, `hl-protocol`, `market-data`, `parquet`, `venue-net`,
+  `exchange-core` and `fixed-decimal`. The pin order is in `.github/workflows/ci.yml`;
+  dependents that build this repository (`../hl-copy-api`, `../hl-copy-core`'s backtest
+  job) pin `leader-scoring` before it.
 - Used by `../hl-copy-api` (proxies `GET /leaders` to `serve`) and by `../hl-copy-core`'s
   backtest, which reads the collection directory.
 - Spec: `../specs/repos/hl-leaderboard.md`; the platform design is in `../specs/design/copytrading.md`.
@@ -81,6 +85,8 @@ Check a run with one `gh run list --limit 1` and at most one
   must accept both.
 - A role lookup costs 60 weight per address and returns `missing` for unseen addresses. The
   collector skips such rows instead of retrying them.
+- `rank` writes `reports/<address>.json` before `leaders.json`; keep that order, the server
+  reads reports when the ranking file changes.
 - A whole collection run can cost over ten thousand weight. Respect `-weight-per-minute`
   and the README's rate-limit section when you change pagination.
 
