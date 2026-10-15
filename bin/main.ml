@@ -92,6 +92,11 @@ let rank =
          ~doc:(sprintf "N round trips needed to be ranked (%d)" Rank.default_min_trades)
      and print =
        flag "print" (optional_with_default 10 int) ~doc:"N print the top N (10)"
+     and no_scoring =
+       flag
+         "no-scoring"
+         no_arg
+         ~doc:" skip leader-scoring (metrics, composite score, capacity, alerts)"
      in
      fun () ->
        stderr_logging ();
@@ -103,7 +108,22 @@ let rank =
            ~now_ms:(Time_ns.to_int_ns_since_epoch now / 1_000_000)
            dataset
        in
-       let json = Rank.to_json ~generated_at:now entries in
+       (* reports first: the server reads them once leaders.json changes *)
+       let%bind scored =
+         if no_scoring then return [] else Scoring.score_all ~dir dataset
+       in
+       let%bind () = Scoring.write_reports ~dir scored in
+       let summaries =
+         List.map scored ~f:(fun s ->
+           Hl_protocol.Address.to_string s.address, Scoring.summary_json s)
+         |> String.Map.of_alist_reduce ~f:(fun a _ -> a)
+       in
+       let json =
+         Rank.to_json
+           ~scoring:(fun a -> Map.find summaries (Hl_protocol.Address.to_string a))
+           ~generated_at:now
+           entries
+       in
        let%map () =
          Writer.save
            ~temp_file:(out ^ ".tmp")
