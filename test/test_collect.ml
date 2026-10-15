@@ -67,7 +67,7 @@ let%expect_test "collect, fail one address, resume, start over" =
     {|
     (Ok
      ((candidates 3) (excluded 0) (collected 2) (failed 1) (fills 4500)
-      (weight 552) (retries 2) (resumed false)))
+      (weight 612) (retries 2) (resumed false)))
     GET /leaderboard
     userRole 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
     userRole 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
@@ -78,12 +78,15 @@ let%expect_test "collect, fail one address, resume, start over" =
     userFillsByTime 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
     clearinghouseState 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
     portfolio 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
+    userFunding 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
     userFillsByTime 0xf5d81a135f756ca16544e53c20fc20643ec3ad53
     clearinghouseState 0xf5d81a135f756ca16544e53c20fc20643ec3ad53
     portfolio 0xf5d81a135f756ca16544e53c20fc20643ec3ad53
+    userFunding 0xf5d81a135f756ca16544e53c20fc20643ec3ad53
     userFillsByTime 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
     clearinghouseState 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
     clearinghouseState 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
+    metaAndAssetCtxs -
     |}];
   let seen = List.length (Fake_hl.requests server) in
   Fake_hl.fail_state server a3 false;
@@ -92,11 +95,13 @@ let%expect_test "collect, fail one address, resume, start over" =
   [%expect
     {|
     (Ok
-     ((candidates 3) (excluded 0) (collected 3) (failed 0) (fills 0) (weight 42)
+     ((candidates 3) (excluded 0) (collected 3) (failed 0) (fills 0) (weight 82)
       (retries 0) (resumed true)))
     userFillsByTime 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
     clearinghouseState 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
     portfolio 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
+    userFunding 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
+    metaAndAssetCtxs -
     |}];
   let%bind dataset = Dataset.load dir in
   List.iter (Or_error.ok_exn dataset).leaders ~f:(fun l ->
@@ -118,7 +123,7 @@ let%expect_test "collect, fail one address, resume, start over" =
   [%expect
     {|
     (Ok
-     ((candidates 3) (excluded 0) (collected 3) (failed 0) (fills 0) (weight 306)
+     ((candidates 3) (excluded 0) (collected 3) (failed 0) (fills 0) (weight 386)
       (retries 0) (resumed false)))
     GET /leaderboard
     userRole 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
@@ -127,12 +132,16 @@ let%expect_test "collect, fail one address, resume, start over" =
     userFillsByTime 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
     clearinghouseState 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
     portfolio 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
+    userFunding 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
     userFillsByTime 0xf5d81a135f756ca16544e53c20fc20643ec3ad53
     clearinghouseState 0xf5d81a135f756ca16544e53c20fc20643ec3ad53
     portfolio 0xf5d81a135f756ca16544e53c20fc20643ec3ad53
+    userFunding 0xf5d81a135f756ca16544e53c20fc20643ec3ad53
     userFillsByTime 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
     clearinghouseState 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
     portfolio 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
+    userFunding 0x399965e15d4e61ec3529cc98b7f7ebb93b733336
+    metaAndAssetCtxs -
     |}];
   let%bind files = Sys.readdir dir in
   let%bind raw = Sys.readdir (dir ^/ "raw") in
@@ -185,7 +194,7 @@ let%expect_test "collect skips a vault and a sub-account and records the roles" 
   [%expect
     {|
     (Ok
-     ((candidates 3) (excluded 2) (collected 3) (failed 0) (fills 0) (weight 426)
+     ((candidates 3) (excluded 2) (collected 3) (failed 0) (fills 0) (weight 506)
       (retries 0) (resumed false)))
     userRole 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf
     userRole 0xf5d81a135f756ca16544e53c20fc20643ec3ad53
@@ -237,7 +246,7 @@ let%expect_test "an address whose role cannot be read is not a candidate on any 
   [%expect
     {|
     (Ok
-     ((candidates 0) (excluded 6) (collected 0) (failed 0) (fills 0) (weight 360)
+     ((candidates 0) (excluded 6) (collected 0) (failed 0) (fills 0) (weight 380)
       (retries 0) (resumed false)))
     |}];
   Fake_hl.close server
