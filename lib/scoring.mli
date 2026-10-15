@@ -1,8 +1,8 @@
 (** leader-scoring over a collection directory: per leader, a track record rebuilt from
-    the raw logs (fills with liquidation flags, funding, every [clearinghouseState]
-    taken, the [portfolio] month curve), its metrics, the composite score and percentile
-    across the collected leaders, the learned model's prediction, a capacity curve from
-    the collected order books and open interest, and alerts. The formulas are in the
+    the raw logs (fills with liquidation flags, funding, every [clearinghouseState] taken,
+    the [portfolio] month curve), its metrics, the composite score and percentile across
+    the collected leaders, the learned model's prediction, a capacity curve from the
+    collected order books and open interest, and alerts. The formulas are in the
     leader-scoring README.
 
     Read-only over [dir]; {!write_reports} writes [reports/<address>.json]. *)
@@ -27,8 +27,8 @@ module Scored : sig
     }
 end
 
-(** Reports for every leader of the dataset, ranked together (leaders whose history
-    cannot be read are left out and logged). *)
+(** Reports for every leader of the dataset, ranked together (leaders whose history cannot
+    be read are left out and logged). *)
 val score_all : dir:string -> Dataset.t -> Scored.t list Deferred.t
 
 (** The short form a leaderboard row carries: composite score, rank and percentile,

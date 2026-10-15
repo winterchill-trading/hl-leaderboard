@@ -147,7 +147,8 @@ let start ~dir ~leaders ~port =
     in
     match Cohttp.Request.meth req, parts with
     | `GET, [ "health" ] -> respond_json (`String "ok")
-    | `GET, [ "scoring"; "metrics" ] -> respond_json (Leader_scoring.Report.catalog_json ())
+    | `GET, [ "scoring"; "metrics" ] ->
+      respond_json (Leader_scoring.Report.catalog_json ())
     | `GET, [ "leaders" ] ->
       (match limit_of uri ~default:Int.max_value with
        | Error msg -> error `Bad_request msg

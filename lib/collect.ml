@@ -118,7 +118,9 @@ let collect_funding api ~path ~start_time address =
         | exception _ -> None)
       |> List.max_elt ~compare:Int.compare
   in
-  let start = Option.value_map newest ~default:start_time ~f:(fun t -> Int.max start_time (t + 1)) in
+  let start =
+    Option.value_map newest ~default:start_time ~f:(fun t -> Int.max start_time (t + 1))
+  in
   let rec page start n =
     if n >= 10
     then return ()
@@ -147,7 +149,9 @@ let collect_funding api ~path ~start_time address =
           | exception _ -> []
         in
         let%bind () =
-          if List.is_empty times then return () else Raw_log.append path ~recv_ts:raw.recv_ts raw.body
+          if List.is_empty times
+          then return ()
+          else Raw_log.append path ~recv_ts:raw.recv_ts raw.body
         in
         let%bind () =
           Rate_limit.acquire
@@ -161,8 +165,8 @@ let collect_funding api ~path ~start_time address =
   page start 0
 ;;
 
-(* Order books of the coins the candidates trade most (by notional), and the venue's
-   open interest, for leader-scoring's copyability estimate. [l2Book] weighs 2. *)
+(* Order books of the coins the candidates trade most (by notional), and the venue's open
+   interest, for leader-scoring's copyability estimate. [l2Book] weighs 2. *)
 let collect_market api (config : Config.t) (dataset : Dataset.t) =
   let notional = String.Table.create () in
   List.iter dataset.leaders ~f:(fun (l : Dataset.Leader.t) ->
@@ -171,8 +175,7 @@ let collect_market api (config : Config.t) (dataset : Dataset.t) =
       if not (Leader_scoring_hl.Hl_decode.is_spot coin)
       then
         Hashtbl.update notional coin ~f:(fun v ->
-          Option.value v ~default:0.
-          +. (Price.to_float f.px *. Size.to_float f.sz))));
+          Option.value v ~default:0. +. (Price.to_float f.px *. Size.to_float f.sz))));
   let coins =
     Hashtbl.to_alist notional
     |> List.sort ~compare:(fun (a, x) (b, y) ->
@@ -184,8 +187,11 @@ let collect_market api (config : Config.t) (dataset : Dataset.t) =
   in
   let%bind () =
     Deferred.List.iter ~how:`Sequential coins ~f:(fun coin ->
-      match%bind Api.info api (`Assoc [ "type", `String "l2Book"; "coin", `String coin ]) with
-      | Ok raw -> Raw_log.append (Layout.book config.dir coin) ~recv_ts:raw.recv_ts raw.body
+      match%bind
+        Api.info api (`Assoc [ "type", `String "l2Book"; "coin", `String coin ])
+      with
+      | Ok raw ->
+        Raw_log.append (Layout.book config.dir coin) ~recv_ts:raw.recv_ts raw.body
       | Error e ->
         Log.Global.info_s [%message "no book" (coin : string) (e : Error.t)];
         return ())
@@ -235,7 +241,11 @@ let collect_one ~now api (config : Config.t) address =
       return ()
   in
   let%map () =
-    collect_funding api ~path:(Layout.funding config.dir address) ~start_time:floor_ms address
+    collect_funding
+      api
+      ~path:(Layout.funding config.dir address)
+      ~start_time:floor_ms
+      address
   in
   Log.Global.info_s
     [%message

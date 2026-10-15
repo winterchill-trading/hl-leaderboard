@@ -14,7 +14,10 @@ let bodies path =
 
 let decode_all entries ~f =
   List.concat_map entries ~f:(fun (e : Raw_log.Entry.t) ->
-    match Or_error.try_with (fun () -> Yojson.Safe.from_string e.body) |> Or_error.bind ~f:(f e) with
+    match
+      Or_error.try_with (fun () -> Yojson.Safe.from_string e.body)
+      |> Or_error.bind ~f:(f e)
+    with
     | Ok items -> items
     | Error _ -> [])
 ;;
@@ -51,12 +54,9 @@ let history ~dir address =
   | None -> Or_error.error_s [%message "nothing collected" (address : Address.t)]
   | Some fetched_at ->
     let fills_truncated =
-      (* the venue keeps only the most recent fills: a long history whose first fill
-         comes after the curve starts covers only its end *)
-      match
-        ( List.min_elt fills ~compare:LS.Fill.compare_by_time
-        , List.hd equity_curve )
-      with
+      (* the venue keeps only the most recent fills: a long history whose first fill comes
+         after the curve starts covers only its end *)
+      match List.min_elt fills ~compare:LS.Fill.compare_by_time, List.hd equity_curve with
       | Some first, Some start when List.length fills >= 2000 ->
         Time_ns.( > ) first.time start.time
       | _ -> false
@@ -122,7 +122,8 @@ let score_all ~dir (dataset : Dataset.t) =
     Deferred.List.filter_map ~how:`Sequential dataset.leaders ~f:(fun l ->
       match%map history ~dir l.address with
       | Error e ->
-        Log.Global.info_s [%message "not scored" ~address:(l.address : Address.t) (e : Error.t)];
+        Log.Global.info_s
+          [%message "not scored" ~address:(l.address : Address.t) (e : Error.t)];
         None
       | Ok h ->
         let books = if Map.is_empty books then None else Some books in
@@ -157,7 +158,8 @@ let summary_json (s : Scored.t) =
     ; "eligible", `Bool s.ranked.eligible
     ; "predicted_forward_sharpe", opt s.report.predicted
     ; ( "capacity_usd"
-      , Option.value_map s.report.copyability ~default:`Null ~f:(fun c -> opt c.capacity) )
+      , Option.value_map s.report.copyability ~default:`Null ~f:(fun c -> opt c.capacity)
+      )
     ; "alerts", `Int (List.length s.report.alerts)
     ; ( "worst_alert"
       , Option.value_map worst ~default:`Null ~f:(fun v ->
@@ -178,7 +180,9 @@ let write_reports ~dir scored =
     let path = Layout.report dir s.address in
     let tmp = path ^ ".tmp" in
     let%bind () =
-      Writer.save tmp ~contents:(Yojson.Safe.to_string (LS.Report.to_json s.report (Some s.ranked)))
+      Writer.save
+        tmp
+        ~contents:(Yojson.Safe.to_string (LS.Report.to_json s.report (Some s.ranked)))
     in
     Unix.rename ~src:tmp ~dst:path)
 ;;

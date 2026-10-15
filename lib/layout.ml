@@ -26,7 +26,10 @@ let funding dir address =
 
 (* Coin names can hold "/" (spot pairs) and ":" (builder perps); keep them out of paths. *)
 let book dir coin =
-  let safe = String.map coin ~f:(fun c -> if Char.is_alphanum c || Char.equal c '-' then c else '_') in
+  let safe =
+    String.map coin ~f:(fun c ->
+      if Char.is_alphanum c || Char.equal c '-' then c else '_')
+  in
   dir ^/ "raw" ^/ "books" ^/ safe ^ ".ndjson"
 ;;
 

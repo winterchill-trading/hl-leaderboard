@@ -119,7 +119,8 @@ let%expect_test "collect, score, write reports and serve them" =
   let%bind catalog = get "/scoring/metrics" in
   printf "catalog: %d metrics\n" (List.length (to_list catalog));
   let%bind () = Server.close server in
-  [%expect {|
+  [%expect
+    {|
     ((address 0x87f9cd15f5050a9283b8896300f7c8cf69ece2cf) (fills 12)
      (source Venue) (trades 91) (eligible true) (reasons ()))
     ((address 0x399965e15d4e61ec3529cc98b7f7ebb93b733336) (fills 0)
