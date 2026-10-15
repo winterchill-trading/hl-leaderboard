@@ -19,6 +19,8 @@ jobs:
             venue-net https://github.com/winterchill-trading/venue-net.git
             hl-client https://github.com/winterchill-trading/hl-client.git
             hl-copy-core https://github.com/winterchill-trading/hl-copy-core.git
+            leader-scoring https://github.com/winterchill-trading/leader-scoring.git
+            leader-scoring-hl https://github.com/winterchill-trading/leader-scoring.git
       - run: opam exec -- dune build
       - run: opam exec -- dune test
   obj-magic:

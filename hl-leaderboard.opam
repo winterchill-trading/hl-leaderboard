@@ -27,6 +27,8 @@ depends: [
   "venue-net"
   "hl-client"
   "hl-copy-core"
+  "leader-scoring"
+  "leader-scoring-hl"
   "odoc" {with-doc}
 ]
 build: [

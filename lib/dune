@@ -15,6 +15,8 @@
   hl-protocol
   venue-net
   hl-client
-  hl-copy-core)
+  hl-copy-core
+  leader-scoring
+  leader-scoring-hl)
  (preprocess
   (pps ppx_jane ppx_yojson_conv)))

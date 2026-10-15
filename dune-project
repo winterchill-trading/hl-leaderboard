@@ -37,4 +37,6 @@
   hl-protocol
   venue-net
   hl-client
-  hl-copy-core))
+  hl-copy-core
+  leader-scoring
+  leader-scoring-hl))
