@@ -194,10 +194,15 @@ let formula =
    / 20); see hl-copy-core Score"
 ;;
 
-let to_json ~generated_at entries =
+let to_json ?(scoring = fun _ -> None) ~generated_at entries =
   `Assoc
     [ "generated_at", `String (Raw_log.format_ts generated_at)
     ; "formula", `String formula
-    ; "leaders", `List (List.map entries ~f:Entry.to_json)
+    ; ( "leaders"
+      , `List
+          (List.map entries ~f:(fun (e : Entry.t) ->
+             match Entry.to_json e, scoring e.address with
+             | `Assoc fields, Some s -> `Assoc (fields @ [ "scoring", s ])
+             | json, _ -> json)) )
     ]
 ;;
