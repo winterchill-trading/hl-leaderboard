@@ -13,6 +13,7 @@
   cohttp
   cohttp-async
   hl-protocol
-  hl-leaderboard)
+  hl-leaderboard
+  leader-scoring)
  (preprocess
   (pps ppx_jane)))
