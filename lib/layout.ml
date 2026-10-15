@@ -19,6 +19,19 @@ let portfolio dir address =
 ;;
 
 let role dir address = dir ^/ "raw" ^/ "role" ^/ Address.to_string address ^ ".ndjson"
+
+let funding dir address =
+  dir ^/ "raw" ^/ "funding" ^/ Address.to_string address ^ ".ndjson"
+;;
+
+(* Coin names can hold "/" (spot pairs) and ":" (builder perps); keep them out of paths. *)
+let book dir coin =
+  let safe = String.map coin ~f:(fun c -> if Char.is_alphanum c || Char.equal c '-' then c else '_') in
+  dir ^/ "raw" ^/ "books" ^/ safe ^ ".ndjson"
+;;
+
+let market dir = dir ^/ "raw" ^/ "market" ^/ "meta_and_asset_ctxs.ndjson"
+let report dir address = dir ^/ "reports" ^/ Address.to_string address ^ ".json"
 let progress dir = dir ^/ "_manifest" ^/ "progress.sexp"
 let leaders_parquet dir = dir ^/ "leaders.parquet"
 let fills_parquet dir = dir ^/ "fills.parquet"
