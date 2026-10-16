@@ -152,6 +152,19 @@ Across the collected leaders `rank` also runs leader-scoring's universe checks
 Each report gains `persistence`, `stats` and `integrity`, and each `scoring` summary
 `integrity_flags`, `excluded`, `persistence_percentile`, `psr` and `dsr`.
 
+On a mainnet collection of 34 leaders (146,761 fills, month curves, read only,
+collected 2026-10-13), `rank` gave: 6-day windows of daily bars, 3 periods, rank
+correlation 0.26 [0.04, 0.44], the top 10 at the 97th percentile of random picks
+(p 0.034), so `persistent` is true, on three periods only; PSR at least 0.95 for 3
+leaders, DSR at least 0.95 for 1; PBO 0.00 and SPA p 0.00 over 17 leaders sharing 29
+days. Integrity: three accounts first seen within 40 minutes of each other (info, not
+excluded), nothing else. A first run with a 50 bps off-book threshold and a 2 s reference
+window flagged one leader whose STRK sell sweep filled 70 to 82 bps below another
+leader's prints; the defaults are now 200 bps and 0.5 s. On the simulator (43 accounts
+that only trade with each other) the first thresholds excluded everyone as counterparties
+and co-traders; chance is now measured inside the observed span and against random
+matching, and no simulator account is excluded.
+
 On the local copy stack (hl-sim with three leaders and 40 noise traders, 2026-10-16):
 `collect -top 10` took 3 minutes (63k fills, 5005 weight), `rank` 1.8 s for 10 leaders
 including the reports.
