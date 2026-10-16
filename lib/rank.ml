@@ -194,9 +194,9 @@ let formula =
    / 20); see hl-copy-core Score"
 ;;
 
-let to_json ?(scoring = fun _ -> None) ~generated_at entries =
+let to_json ?(scoring = fun _ -> None) ?universe ~generated_at entries =
   `Assoc
-    [ "generated_at", `String (Raw_log.format_ts generated_at)
+    ([ "generated_at", `String (Raw_log.format_ts generated_at)
     ; "formula", `String formula
     ; ( "leaders"
       , `List
@@ -204,5 +204,9 @@ let to_json ?(scoring = fun _ -> None) ~generated_at entries =
              match Entry.to_json e, scoring e.address with
              | `Assoc fields, Some s -> `Assoc (fields @ [ "scoring", s ])
              | json, _ -> json)) )
-    ]
+     ]
+     @
+     match universe with
+     | None -> []
+     | Some u -> [ "scoring_universe", u ])
 ;;

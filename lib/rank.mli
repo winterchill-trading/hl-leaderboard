@@ -71,9 +71,12 @@ val default_min_trades : int
 val rank : ?min_trades:int -> now_ms:int -> Dataset.t -> Entry.t list
 
 (** [{"generated_at": ..., "formula": ..., "leaders": [...]}]. [scoring] adds a
-    ["scoring"] object to the leaders it knows ({!Scoring.summary_json}). *)
+    ["scoring"] object to the leaders it knows ({!Scoring.summary_json}); [universe] adds
+    a ["scoring_universe"] object ({!Scoring.universe_json}: persistence, selection
+    statistics, integrity counts). *)
 val to_json
   :  ?scoring:(Address.t -> Yojson.Safe.t option)
+  -> ?universe:Yojson.Safe.t
   -> generated_at:Time_ns.t
   -> Entry.t list
   -> Yojson.Safe.t
