@@ -67,7 +67,7 @@ let%expect_test "collect, score, write reports and serve them" =
   ignore (Or_error.ok_exn summary : Collect.Summary.t);
   let%bind () = Fake_hl.close fake in
   let%bind dataset = Dataset.load dir >>| Or_error.ok_exn in
-  let%bind scored = Scoring.score_all ~dir dataset in
+  let%bind scored, universe = Scoring.score_all ~dir dataset in
   List.iter scored ~f:(fun s ->
     let r = s.report.record in
     print_s
@@ -93,6 +93,7 @@ let%expect_test "collect, score, write reports and serve them" =
         (Yojson.Safe.to_string
            (Rank.to_json
               ~scoring:(fun a -> Map.find summaries (Address.to_string a))
+              ?universe:(Option.map universe ~f:Scoring.universe_json)
               ~generated_at:now
               entries))
   in
@@ -104,6 +105,7 @@ let%expect_test "collect, score, write reports and serve them" =
   in
   let open Yojson.Safe.Util in
   let%bind board = get "/leaders" in
+  print_endline (member "scoring_universe" board |> keys |> String.concat ~sep:" ");
   board
   |> member "leaders"
   |> to_list
@@ -126,11 +128,13 @@ let%expect_test "collect, score, write reports and serve them" =
     ((address 0x399965e15d4e61ec3529cc98b7f7ebb93b733336) (fills 0)
      (source Venue) (trades 86) (eligible false)
      (reasons ("0 closed trades, 5 needed")))
-    score rank percentile eligible predicted_forward_sharpe capacity_usd alerts worst_alert total_return sharpe sortino max_drawdown win_rate leverage_p95 trades
-    score rank percentile eligible predicted_forward_sharpe capacity_usd alerts worst_alert total_return sharpe sortino max_drawdown win_rate leverage_p95 trades
+    persistence stats integrity
+    score rank percentile eligible predicted_forward_sharpe capacity_usd alerts worst_alert total_return sharpe sortino max_drawdown win_rate leverage_p95 trades integrity_flags excluded persistence_percentile psr dsr
+    score rank percentile eligible predicted_forward_sharpe capacity_usd alerts worst_alert total_return sharpe sortino max_drawdown win_rate leverage_p95 trades integrity_flags excluded persistence_percentile psr dsr
     ((report_keys
       (account equity_source from_ms until_ms fills fills_truncated bar_seconds
-       score predicted_forward_sharpe metrics equity_curve capacity alerts))
+       score predicted_forward_sharpe metrics equity_curve capacity alerts
+       persistence stats integrity))
      (metrics 34))
     catalog: 34 metrics
     |}];
