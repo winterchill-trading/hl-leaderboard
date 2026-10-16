@@ -57,7 +57,7 @@ Format only this repository, after the tests pass:
 ## Dependencies and dependents
 
 - Depends on `hl-copy-core`, `leader-scoring` and `leader-scoring-hl` (one repository,
-  `../leader-scoring`), `hl-client`, `hl-protocol`, `market-data`, `parquet`, `venue-net`,
+  `../leader-scoring`, which needs `backtest-stats` pinned before it), `hl-client`, `hl-protocol`, `market-data`, `parquet`, `venue-net`,
   `exchange-core` and `fixed-decimal`. The pin order is in `.github/workflows/ci.yml`;
   dependents that build this repository (`../hl-copy-api`, `../hl-copy-core`'s backtest
   job) pin `leader-scoring` before it.
@@ -87,6 +87,13 @@ Check a run with one `gh run list --limit 1` and at most one
   collector skips such rows instead of retrying them.
 - `rank` writes `reports/<address>.json` before `leaders.json`; keep that order, the server
   reads reports when the ranking file changes.
+- The universe checks (persistence, selection statistics, integrity) run once over every
+  scored leader in `Scoring.score_all`; their settings follow the records' span
+  (`Scoring.configs`). A simulator run of seconds has no complete window and too few bars:
+  `persistence` and `stats` are then absent, which is expected.
+- Every leader in a simulator is a counterparty of every other; integrity thresholds were
+  calibrated so none is excluded (`scripts/e2e-stack.sh` in hl-copy-api checks it). A
+  change that excludes simulator accounts is a regression.
 - A whole collection run can cost over ten thousand weight. Respect `-weight-per-minute`
   and the README's rate-limit section when you change pagination.
 
