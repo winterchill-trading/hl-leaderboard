@@ -108,8 +108,8 @@ let rank =
            dataset
        in
        (* reports first: the server reads them once leaders.json changes *)
-       let%bind scored =
-         if no_scoring then return [] else Scoring.score_all ~dir dataset
+       let%bind scored, universe =
+         if no_scoring then return ([], None) else Scoring.score_all ~dir dataset
        in
        let%bind () = Scoring.write_reports ~dir scored in
        let summaries =
@@ -120,6 +120,7 @@ let rank =
        let json =
          Rank.to_json
            ~scoring:(fun a -> Map.find summaries (Hl_protocol.Address.to_string a))
+           ?universe:(Option.map universe ~f:Scoring.universe_json)
            ~generated_at:now
            entries
        in

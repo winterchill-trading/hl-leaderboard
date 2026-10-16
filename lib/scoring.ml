@@ -74,6 +74,42 @@ let history ~dir address =
          })
 ;;
 
+let quotes ~dir =
+  let books_dir = dir ^/ "raw" ^/ "books" in
+  let%bind files =
+    match%map Monitor.try_with (fun () -> Sys.readdir books_dir) with
+    | Ok files -> Array.to_list files |> List.sort ~compare:String.compare
+    | Error _ -> []
+  in
+  Deferred.List.concat_map ~how:`Sequential files ~f:(fun file ->
+    let%map entries = bodies (books_dir ^/ file) in
+    List.filter_map entries ~f:(fun (e : Raw_log.Entry.t) ->
+      match
+        Or_error.try_with (fun () -> Yojson.Safe.from_string e.body)
+        |> Or_error.bind ~f:Decode.book
+      with
+      | Ok { coin; bids; asks } when (not (Array.is_empty bids)) && not (Array.is_empty asks)
+        ->
+        Some
+          { LS.Integrity.Quote.time = e.recv_ts
+          ; coin
+          ; bid = bids.(0).px
+          ; ask = asks.(0).px
+          }
+      | Ok _ | Error _ -> None))
+;;
+
+let first_seen ~dir address =
+  let%map portfolios = bodies (Layout.portfolio dir address) in
+  List.last portfolios
+  |> Option.bind ~f:(fun (e : Raw_log.Entry.t) ->
+    Or_error.try_with (fun () -> Yojson.Safe.from_string e.body)
+    |> Or_error.bind ~f:(Decode.portfolio ~window:"allTime")
+    |> Result.ok)
+  |> Option.bind ~f:List.hd
+  |> Option.map ~f:(fun (p : LS.Equity_point.t) -> p.time)
+;;
+
 let market ~dir =
   let books_dir = dir ^/ "raw" ^/ "books" in
   let%bind files =
@@ -115,28 +151,72 @@ module Scored = struct
     }
 end
 
+let configs records =
+  let spans =
+    List.map records ~f:(fun (r : LS.Track_record.t) -> Time_ns.diff r.until r.from)
+    |> List.sort ~compare:Time_ns.Span.compare
+    |> Array.of_list
+  in
+  let span =
+    if Array.is_empty spans then Time_ns.Span.day else spans.(Array.length spans / 2)
+  in
+  let bar = LS.Metrics.auto_bar ~span in
+  let bars = Float.iround_down_exn (Time_ns.Span.( // ) span bar) in
+  (* about five windows over the typical record, and never fewer than three bars each *)
+  let window = Time_ns.Span.scale_int bar (Int.max 3 (bars / 5)) in
+  ( { LS.Persistence.Config.default with window; bar }
+  , { LS.Leader_stats.Config.default with
+      bar
+    ; common_bars = Int.max 3 (Int.min 90 (bars - 1))
+    } )
+;;
+
 let score_all ~dir (dataset : Dataset.t) =
   let%bind books, open_interest = market ~dir in
+  let%bind quotes = quotes ~dir in
   let model = Lazy.force LS.Model.bundled in
-  let%map reports =
+  let%bind reports =
     Deferred.List.filter_map ~how:`Sequential dataset.leaders ~f:(fun l ->
-      match%map history ~dir l.address with
+      match%bind history ~dir l.address with
       | Error e ->
         Log.Global.info_s
           [%message "not scored" ~address:(l.address : Address.t) (e : Error.t)];
-        None
+        return None
       | Ok h ->
+        let%map created = first_seen ~dir l.address in
         let books = if Map.is_empty books then None else Some books in
-        Some (l.address, LS.Report.create ?books ~open_interest ~model h))
+        Some (l.address, h, created, LS.Report.create ?books ~open_interest ~model h))
   in
   let by_account =
-    List.map reports ~f:(fun (a, _) -> Address.to_string a, a)
+    List.map reports ~f:(fun (a, _, _, _) -> Address.to_string a, a)
     |> String.Map.of_alist_reduce ~f:(fun a _ -> a)
   in
-  LS.Report.rank (List.map reports ~f:snd)
-  |> List.map ~f:(fun (report, ranked) ->
-    { Scored.address = Map.find_exn by_account ranked.account; report; ranked })
+  let integrity =
+    LS.Integrity.check
+      ~quotes
+      ~created:
+        (List.filter_map reports ~f:(fun (a, _, created, _) ->
+           Option.map created ~f:(fun t -> Address.to_string a, t))
+         |> String.Map.of_alist_reduce ~f:(fun a _ -> a))
+      (List.map reports ~f:(fun (_, h, _, _) -> h))
+  in
+  let reports = List.map reports ~f:(fun (_, _, _, r) -> r) in
+  let persistence, stats = configs (List.map reports ~f:(fun r -> r.record)) in
+  let universe, reports =
+    match reports with
+    | [] -> None, []
+    | _ :: _ ->
+      let u, rs = LS.Report.analyse ~persistence ~stats ~integrity reports in
+      Some u, rs
+  in
+  return
+    ( LS.Report.rank reports
+      |> List.map ~f:(fun (report, ranked) ->
+        { Scored.address = Map.find_exn by_account ranked.account; report; ranked })
+    , universe )
 ;;
+
+let universe_json = LS.Report.Universe.to_json
 
 let num x = if Float.is_finite x then `Float x else `Null
 
@@ -171,6 +251,23 @@ let summary_json (s : Scored.t) =
     ; "win_rate", m Win_rate
     ; "leverage_p95", m Leverage_p95
     ; "trades", m Trades
+    ; ( "integrity_flags"
+      , `List
+          (List.map s.report.integrity ~f:(fun f ->
+             `String (LS.Integrity.Kind.to_string f.kind))) )
+    ; ( "excluded"
+      , `Bool
+          (not
+             (List.is_empty
+                (LS.Integrity.Policy.reasons LS.Integrity.Policy.default s.report.integrity)))
+      )
+    ; ( "persistence_percentile"
+      , Option.bind s.report.persistence ~f:(fun p ->
+          LS.Persistence.leader p s.report.record.account)
+        |> Option.bind ~f:(fun l -> l.mean_percentile)
+        |> opt )
+    ; "psr", opt (Option.map s.report.stats ~f:(fun r -> r.psr))
+    ; "dsr", opt (Option.bind s.report.stats ~f:(fun r -> r.dsr))
     ]
 ;;
 
