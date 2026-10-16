@@ -130,6 +130,28 @@ collected books, and alerts. Each leader's full report goes to `reports/<address
 every ranking entry gains a `scoring` summary. The legacy score above, its `rank` and the
 order of `leaders.json` are unchanged.
 
+Across the collected leaders `rank` also runs leader-scoring's universe checks
+(`Report.analyse`) and writes them to `leaders.json` as `scoring_universe`:
+
+- **Persistence**: does the ranking in one window predict the next (rank correlation with
+  a bootstrap interval, quintile transitions, decay, the top 10 against random picks).
+  Bars and windows follow the records: daily bars and windows of a fifth of the median
+  span (about six days on the month curves), minute bars on a simulator run
+  (`Scoring.configs`). With a month of history this is a handful of windows; read it as a
+  warning sign, not a proof.
+- **Selection statistics**: PSR, DSR (the collected leaders are the trials) and the
+  minimum track record per leader; PBO and SPA over the common window.
+- **Integrity**: flags from the leaders' fills (self and wash trades, trades between
+  collected accounts, co-trading clusters), the logged books (fills more than 50 bps off
+  the recorded quotes or the other leaders' fills at that time) and first-seen times (the
+  first point of the all-time `portfolio` curve stands in for account creation). The
+  default policy takes every warning or critical flag out of the composite ranking: the
+  leader is still scored, with the reasons. Front-running needs a trade flow, which
+  collection does not record yet.
+
+Each report gains `persistence`, `stats` and `integrity`, and each `scoring` summary
+`integrity_flags`, `excluded`, `persistence_percentile`, `psr` and `dsr`.
+
 On the local copy stack (hl-sim with three leaders and 40 noise traders, 2026-10-16):
 `collect -top 10` took 3 minutes (63k fills, 5005 weight), `rank` 1.8 s for 10 leaders
 including the reports.
@@ -138,8 +160,8 @@ including the reports.
 
 | Request | Response |
 | --- | --- |
-| `GET /leaders[?limit=N]` | The ranking file: `generated_at`, `formula`, `leaders` (rank, address, display name, `role` (`userRole` name or null), account value, leaderboard windows, fill counts, `curve_source`, `truncated`, `score`, `components` and `scoring`: composite score, rank, percentile, eligibility, forecast, capacity, alert count and worst severity, headline metrics); re-read when the file changes |
-| `GET /leaders/<address>[?limit=N]` | `entry` (the ranking entry or null), `fill_count`, `fills` (newest first, default 500), `equity_curve` (`[[time_ms, equity], ...]`), `curve_source`, `positions` (latest `clearinghouseState`), `report` (the leader-scoring report: metrics, score components, forecast, equity curve, capacity curve, alerts; null before a ranking with it) |
+| `GET /leaders[?limit=N]` | The ranking file: `generated_at`, `formula`, `leaders` (rank, address, display name, `role` (`userRole` name or null), account value, leaderboard windows, fill counts, `curve_source`, `truncated`, `score`, `components` and `scoring`: composite score, rank, percentile, eligibility, forecast, capacity, alert count and worst severity, headline metrics, integrity flag kinds, exclusion, persistence percentile, PSR, DSR) and `scoring_universe` (persistence, selection statistics, integrity counts); re-read when the file changes |
+| `GET /leaders/<address>[?limit=N]` | `entry` (the ranking entry or null), `fill_count`, `fills` (newest first, default 500), `equity_curve` (`[[time_ms, equity], ...]`), `curve_source`, `positions` (latest `clearinghouseState`), `report` (the leader-scoring report: metrics, score components, forecast, equity curve, capacity curve, alerts, persistence row, selection statistics, integrity flags with evidence; null before a ranking with it) |
 | `GET /scoring/metrics` | Every leader-scoring metric with label, unit, direction and formula |
 | `GET /health` | `"ok"` |
 
@@ -162,7 +184,7 @@ A malformed address is a 400, an address with nothing collected a 404. Every res
 | `Dataset` | A collection directory read back from the raw logs |
 | `Parquet_out` | `leaders.parquet` and `fills.parquet` |
 | `Rank` | Score input, ranking and its JSON |
-| `Scoring` | leader-scoring reports from the raw logs, summaries for the ranking |
+| `Scoring` | leader-scoring reports from the raw logs, the universe checks (persistence, selection statistics, integrity), summaries for the ranking |
 | `Server` | The JSON API |
 
 `Hl_client.Leaderboard.fetch`, `Hl_client.Info.user_fills_by_time` and
