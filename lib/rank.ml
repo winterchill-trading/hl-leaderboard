@@ -197,13 +197,13 @@ let formula =
 let to_json ?(scoring = fun _ -> None) ?universe ~generated_at entries =
   `Assoc
     ([ "generated_at", `String (Raw_log.format_ts generated_at)
-    ; "formula", `String formula
-    ; ( "leaders"
-      , `List
-          (List.map entries ~f:(fun (e : Entry.t) ->
-             match Entry.to_json e, scoring e.address with
-             | `Assoc fields, Some s -> `Assoc (fields @ [ "scoring", s ])
-             | json, _ -> json)) )
+     ; "formula", `String formula
+     ; ( "leaders"
+       , `List
+           (List.map entries ~f:(fun (e : Entry.t) ->
+              match Entry.to_json e, scoring e.address with
+              | `Assoc fields, Some s -> `Assoc (fields @ [ "scoring", s ])
+              | json, _ -> json)) )
      ]
      @
      match universe with

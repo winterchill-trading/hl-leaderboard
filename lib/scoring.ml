@@ -88,8 +88,8 @@ let quotes ~dir =
         Or_error.try_with (fun () -> Yojson.Safe.from_string e.body)
         |> Or_error.bind ~f:Decode.book
       with
-      | Ok { coin; bids; asks } when (not (Array.is_empty bids)) && not (Array.is_empty asks)
-        ->
+      | Ok { coin; bids; asks }
+        when (not (Array.is_empty bids)) && not (Array.is_empty asks) ->
         Some
           { LS.Integrity.Quote.time = e.recv_ts
           ; coin
@@ -217,7 +217,6 @@ let score_all ~dir (dataset : Dataset.t) =
 ;;
 
 let universe_json = LS.Report.Universe.to_json
-
 let num x = if Float.is_finite x then `Float x else `Null
 
 let opt = function
@@ -259,8 +258,9 @@ let summary_json (s : Scored.t) =
       , `Bool
           (not
              (List.is_empty
-                (LS.Integrity.Policy.reasons LS.Integrity.Policy.default s.report.integrity)))
-      )
+                (LS.Integrity.Policy.reasons
+                   LS.Integrity.Policy.default
+                   s.report.integrity))) )
     ; ( "persistence_percentile"
       , Option.bind s.report.persistence ~f:(fun p ->
           LS.Persistence.leader p s.report.record.account)
